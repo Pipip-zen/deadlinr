@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from '@/lib/queryClient'
 import { useAuthSession } from '@/hooks/useAuthSession'
 import { useAuthStore } from '@/lib/store'
+import { Toaster } from 'sonner'
 
 import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { OnboardingGuard } from '@/components/shared/OnboardingGuard'
@@ -88,6 +89,7 @@ export default function App() {
                 <BrowserRouter>
                     <AppRoutes />
                 </BrowserRouter>
+                <Toaster richColors position="top-right" closeButton />
                 <ReactQueryDevtools initialIsOpen={false} />
             </QueryClientProvider>
         </ErrorBoundary>
