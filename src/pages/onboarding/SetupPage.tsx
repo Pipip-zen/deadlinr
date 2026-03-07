@@ -52,8 +52,8 @@ function AvatarStep({
             <div
                 {...getRootProps()}
                 className={`flex w-full cursor-pointer flex-col items-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors ${isDragActive
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
                     } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
             >
                 <input {...getInputProps()} />

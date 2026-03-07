@@ -228,215 +228,248 @@ function SuperadminDashboardContent() {
     // ── Render ───────────────────────────────────────────────────
     return (
         <div className="space-y-8 pb-12">
-            <div>
-                <h1 className="text-2xl font-bold">Superadmin Overview</h1>
-                <p className="text-sm text-muted-foreground">System-wide statistics and management</p>
+            <div className="flex flex-col gap-2">
+                <h1 className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-3xl font-extrabold text-transparent">
+                    Superadmin Hub
+                </h1>
+                <p className="text-sm font-medium text-muted-foreground">Manage your entire operational ecosystem</p>
             </div>
 
             {/* ── Stats Row ── */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-primary mb-2">
-                        <BookOpen size={18} />
-                        <h3 className="font-semibold">Total Classes</h3>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                <motion.div
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="relative overflow-hidden rounded-2xl border border-primary/10 bg-gradient-to-br from-card to-primary/5 p-6 shadow-sm backdrop-blur-xl"
+                >
+                    <div className="absolute -right-6 -top-6 rounded-full bg-primary/10 p-8 blur-2xl" />
+                    <div className="relative z-10">
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-inner">
+                            <BookOpen size={24} />
+                        </div>
+                        <h3 className="text-sm font-semibold text-muted-foreground">Total Classes</h3>
+                        <p className="mt-1 text-4xl font-black text-foreground">{stats?.totalClasses ?? 0}</p>
                     </div>
-                    <p className="text-3xl font-bold">{stats?.totalClasses ?? 0}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-blue-500 mb-2">
-                        <Users size={18} />
-                        <h3 className="font-semibold">Total Students</h3>
+                </motion.div>
+
+                <motion.div
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="relative overflow-hidden rounded-2xl border border-blue-500/10 bg-gradient-to-br from-card to-blue-500/5 p-6 shadow-sm backdrop-blur-xl"
+                >
+                    <div className="absolute -right-6 -top-6 rounded-full bg-blue-500/10 p-8 blur-2xl" />
+                    <div className="relative z-10">
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 shadow-inner">
+                            <Users size={24} />
+                        </div>
+                        <h3 className="text-sm font-semibold text-muted-foreground">Total Students</h3>
+                        <p className="mt-1 text-4xl font-black text-foreground">{stats?.totalStudents ?? 0}</p>
                     </div>
-                    <p className="text-3xl font-bold">{stats?.totalStudents ?? 0}</p>
-                </div>
-                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-                    <div className="flex items-center gap-2 text-emerald-500 mb-2">
-                        <ListTodo size={18} />
-                        <h3 className="font-semibold">Total Tasks</h3>
+                </motion.div>
+
+                <motion.div
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                    className="relative overflow-hidden rounded-2xl border border-emerald-500/10 bg-gradient-to-br from-card to-emerald-500/5 p-6 shadow-sm backdrop-blur-xl"
+                >
+                    <div className="absolute -right-6 -top-6 rounded-full bg-emerald-500/10 p-8 blur-2xl" />
+                    <div className="relative z-10">
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500 shadow-inner">
+                            <ListTodo size={24} />
+                        </div>
+                        <h3 className="text-sm font-semibold text-muted-foreground">Total Tasks</h3>
+                        <p className="mt-1 text-4xl font-black text-foreground">{stats?.totalTasks ?? 0}</p>
                     </div>
-                    <p className="text-3xl font-bold">{stats?.totalTasks ?? 0}</p>
-                </div>
+                </motion.div>
             </div>
 
-            {/* ── Classes Section ── */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold">Classes</h2>
-                    <Button onClick={() => setCreateClassOpen(true)} size="sm">
-                        <Plus size={16} className="mr-2" /> New Class
-                    </Button>
-                </div>
+            <div className="space-y-6">
+                {/* ── Classes Section ── */}
+                <div className="rounded-3xl border border-border bg-card/50 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl">
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Classes Directory</h2>
+                            <p className="text-sm text-muted-foreground">Manage organizational groups</p>
+                        </div>
+                        <Button onClick={() => setCreateClassOpen(true)} className="rounded-full shadow-md transition-transform hover:scale-105">
+                            <Plus size={16} className="mr-2" /> New Class
+                        </Button>
+                    </div>
 
-                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead>
-                            {classTable.getHeaderGroups().map(hg => (
-                                <tr key={hg.id} className="border-b border-border bg-muted/40 text-left">
-                                    {hg.headers.map(h => (
-                                        <th key={h.id} className="px-4 py-3 font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                                            <div
-                                                className={`flex items-center gap-1.5 ${h.column.getCanSort() ? 'cursor-pointer select-none' : ''}`}
-                                                onClick={h.column.getToggleSortingHandler()}
+                    <div className="overflow-hidden rounded-2xl border border-border bg-background/50 shadow-inner">
+                        <table className="w-full text-sm">
+                            <thead>
+                                {classTable.getHeaderGroups().map(hg => (
+                                    <tr key={hg.id} className="border-b border-border bg-muted/40 text-left">
+                                        {hg.headers.map(h => (
+                                            <th key={h.id} className="px-4 py-3 font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                                                <div
+                                                    className={`flex items-center gap-1.5 ${h.column.getCanSort() ? 'cursor-pointer select-none' : ''}`}
+                                                    onClick={h.column.getToggleSortingHandler()}
+                                                >
+                                                    {flexRender(h.column.columnDef.header, h.getContext())}
+                                                    {h.column.getCanSort() && <SortIcon sorted={h.column.getIsSorted()} />}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </thead>
+                            <tbody>
+                                {classesLoading ? (
+                                    <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Loading classes...</td></tr>
+                                ) : classes.length === 0 ? (
+                                    <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No classes found</td></tr>
+                                ) : (
+                                    <AnimatePresence initial={false}>
+                                        {classTable.getRowModel().rows.map(row => (
+                                            <motion.tr
+                                                key={row.original.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
                                             >
-                                                {flexRender(h.column.columnDef.header, h.getContext())}
-                                                {h.column.getCanSort() && <SortIcon sorted={h.column.getIsSorted()} />}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            ))}
-                        </thead>
-                        <tbody>
-                            {classesLoading ? (
-                                <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Loading classes...</td></tr>
-                            ) : classes.length === 0 ? (
-                                <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No classes found</td></tr>
-                            ) : (
-                                <AnimatePresence initial={false}>
-                                    {classTable.getRowModel().rows.map(row => (
-                                        <motion.tr
-                                            key={row.original.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 5 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                                        >
-                                            {row.getVisibleCells().map(cell => (
-                                                <td key={cell.id} className="px-4 py-3">
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </td>
-                                            ))}
-                                        </motion.tr>
-                                    ))}
-                                </AnimatePresence>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* ── Admins Section ── */}
-            <div className="space-y-4">
-                <div className="flex items-center justify-between pt-4">
-                    <h2 className="text-xl font-bold">Class Admins</h2>
-                    <Button onClick={() => setAssignAdminOpen(true)} size="sm" variant="outline">
-                        <UserPlus size={16} className="mr-2" /> Assign Admin
-                    </Button>
+                                                {row.getVisibleCells().map(cell => (
+                                                    <td key={cell.id} className="px-4 py-3">
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </td>
+                                                ))}
+                                            </motion.tr>
+                                        ))}
+                                    </AnimatePresence>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead>
-                            {adminTable.getHeaderGroups().map(hg => (
-                                <tr key={hg.id} className="border-b border-border bg-muted/40 text-left">
-                                    {hg.headers.map(h => (
-                                        <th key={h.id} className="px-4 py-3 font-semibold text-muted-foreground uppercase tracking-wide text-xs">
-                                            <div
-                                                className={`flex items-center gap-1.5 ${h.column.getCanSort() ? 'cursor-pointer select-none' : ''}`}
-                                                onClick={h.column.getToggleSortingHandler()}
+                {/* ── Admins Section ── */}
+                <div className="rounded-3xl border border-border bg-card/50 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl">
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Role Management</h2>
+                            <p className="text-sm text-muted-foreground">Assign class administrators</p>
+                        </div>
+                        <Button onClick={() => setAssignAdminOpen(true)} variant="outline" className="rounded-full border-primary/20 bg-primary/5 hover:bg-primary/10 transition-transform hover:scale-105">
+                            <UserPlus size={16} className="mr-2 text-primary" /> <span className="text-primary font-medium">Assign Admin</span>
+                        </Button>
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-border bg-background/50 shadow-inner">
+                        <table className="w-full text-sm">
+                            <thead>
+                                {adminTable.getHeaderGroups().map(hg => (
+                                    <tr key={hg.id} className="border-b border-border bg-muted/40 text-left">
+                                        {hg.headers.map(h => (
+                                            <th key={h.id} className="px-4 py-3 font-semibold text-muted-foreground uppercase tracking-wide text-xs">
+                                                <div
+                                                    className={`flex items-center gap-1.5 ${h.column.getCanSort() ? 'cursor-pointer select-none' : ''}`}
+                                                    onClick={h.column.getToggleSortingHandler()}
+                                                >
+                                                    {flexRender(h.column.columnDef.header, h.getContext())}
+                                                    {h.column.getCanSort() && <SortIcon sorted={h.column.getIsSorted()} />}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </thead>
+                            <tbody>
+                                {adminsLoading ? (
+                                    <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">Loading admins...</td></tr>
+                                ) : admins.length === 0 ? (
+                                    <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">No admins assigned yet</td></tr>
+                                ) : (
+                                    <AnimatePresence initial={false}>
+                                        {adminTable.getRowModel().rows.map(row => (
+                                            <motion.tr
+                                                key={row.original.id}
+                                                layout
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
                                             >
-                                                {flexRender(h.column.columnDef.header, h.getContext())}
-                                                {h.column.getCanSort() && <SortIcon sorted={h.column.getIsSorted()} />}
-                                            </div>
-                                        </th>
-                                    ))}
-                                </tr>
-                            ))}
-                        </thead>
-                        <tbody>
-                            {adminsLoading ? (
-                                <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">Loading admins...</td></tr>
-                            ) : admins.length === 0 ? (
-                                <tr><td colSpan={3} className="py-8 text-center text-muted-foreground">No admins assigned yet</td></tr>
-                            ) : (
-                                <AnimatePresence initial={false}>
-                                    {adminTable.getRowModel().rows.map(row => (
-                                        <motion.tr
-                                            key={row.original.id}
-                                            layout
-                                            initial={{ opacity: 0, y: 5 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, height: 0 }}
-                                            className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                                        >
-                                            {row.getVisibleCells().map(cell => (
-                                                <td key={cell.id} className="px-4 py-3">
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </td>
-                                            ))}
-                                        </motion.tr>
-                                    ))}
-                                </AnimatePresence>
-                            )}
-                        </tbody>
-                    </table>
+                                                {row.getVisibleCells().map(cell => (
+                                                    <td key={cell.id} className="px-4 py-3">
+                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                    </td>
+                                                ))}
+                                            </motion.tr>
+                                        ))}
+                                    </AnimatePresence>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
 
-            {/* ── Dialogs ── */}
+                {/* ── Dialogs ── */}
 
-            <Dialog open={createClassOpen} onClose={() => setCreateClassOpen(false)} title="Create New Class">
-                <form onSubmit={classForm.handleSubmit(handleCreateClass)} className="space-y-4">
-                    <Input
-                        label="Class Name"
-                        placeholder="e.g. Computer Science 101"
-                        {...classForm.register('name')}
-                        error={classForm.formState.errors.name?.message}
-                    />
-                    <Button type="submit" className="w-full" loading={createClassMut.isPending}>Create Class</Button>
-                </form>
-            </Dialog>
+                <Dialog open={createClassOpen} onClose={() => setCreateClassOpen(false)} title="Create New Class">
+                    <form onSubmit={classForm.handleSubmit(handleCreateClass)} className="space-y-4">
+                        <Input
+                            label="Class Name"
+                            placeholder="e.g. Computer Science 101"
+                            {...classForm.register('name')}
+                            error={classForm.formState.errors.name?.message}
+                        />
+                        <Button type="submit" className="w-full" loading={createClassMut.isPending}>Create Class</Button>
+                    </form>
+                </Dialog>
 
-            <Dialog open={!!deleteClassId} onClose={() => setDeleteClassId(null)} title="Delete Class" description="This cannot be undone.">
-                <p className="text-sm text-muted-foreground mb-6">
-                    Are you completely sure? This will cascade and delete all tasks and completions for this class.
-                </p>
-                <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setDeleteClassId(null)}>Cancel</Button>
-                    <Button variant="destructive" className="flex-1" loading={deleteClassMut.isPending} onClick={async () => {
-                        if (deleteClassId) await deleteClassMut.mutateAsync(deleteClassId)
-                        setDeleteClassId(null)
-                    }}>Yes, delete</Button>
-                </div>
-            </Dialog>
-
-            <Dialog open={assignAdminOpen} onClose={() => setAssignAdminOpen(false)} title="Assign Admin">
-                <form onSubmit={adminForm.handleSubmit(handleAssignAdmin)} className="space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                        The user must have already signed in with Google at least once so their email exists in the system.
+                <Dialog open={!!deleteClassId} onClose={() => setDeleteClassId(null)} title="Delete Class" description="This cannot be undone.">
+                    <p className="text-sm text-muted-foreground mb-6">
+                        Are you completely sure? This will cascade and delete all tasks and completions for this class.
                     </p>
-                    <Input
-                        label="User Email"
-                        type="email"
-                        placeholder="teacher@school.edu"
-                        {...adminForm.register('email')}
-                        error={adminForm.formState.errors.email?.message}
-                    />
-                    <Select
-                        label="Assign to Class"
-                        {...adminForm.register('classId')}
-                        error={adminForm.formState.errors.classId?.message}
-                        options={classOptions.map(c => ({ value: c.id, label: c.name }))}
-                        placeholder="Select a class..."
-                    />
-                    <Button type="submit" className="w-full mt-2" loading={assignAdminMut.isPending}>Assign Admin Role</Button>
-                </form>
-            </Dialog>
+                    <div className="flex gap-3">
+                        <Button variant="outline" className="flex-1" onClick={() => setDeleteClassId(null)}>Cancel</Button>
+                        <Button variant="destructive" className="flex-1" loading={deleteClassMut.isPending} onClick={async () => {
+                            if (deleteClassId) await deleteClassMut.mutateAsync(deleteClassId)
+                            setDeleteClassId(null)
+                        }}>Yes, delete</Button>
+                    </div>
+                </Dialog>
 
-            <Dialog open={!!revokeAdminId} onClose={() => setRevokeAdminId(null)} title="Revoke Admin Rights">
-                <p className="text-sm text-muted-foreground mb-6">
-                    Are you sure? This user will become a regular student and lose access to task management.
-                </p>
-                <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setRevokeAdminId(null)}>Cancel</Button>
-                    <Button variant="destructive" className="flex-1" loading={revokeAdminMut.isPending} onClick={async () => {
-                        if (revokeAdminId) await revokeAdminMut.mutateAsync(revokeAdminId)
-                        setRevokeAdminId(null)
-                    }}>Revoke Access</Button>
-                </div>
-            </Dialog>
+                <Dialog open={assignAdminOpen} onClose={() => setAssignAdminOpen(false)} title="Assign Admin">
+                    <form onSubmit={adminForm.handleSubmit(handleAssignAdmin)} className="space-y-4">
+                        <p className="text-xs text-muted-foreground">
+                            The user must have already signed in with Google at least once so their email exists in the system.
+                        </p>
+                        <Input
+                            label="User Email"
+                            type="email"
+                            placeholder="teacher@school.edu"
+                            {...adminForm.register('email')}
+                            error={adminForm.formState.errors.email?.message}
+                        />
+                        <Select
+                            label="Assign to Class"
+                            {...adminForm.register('classId')}
+                            error={adminForm.formState.errors.classId?.message}
+                            options={classOptions.map(c => ({ value: c.id, label: c.name }))}
+                            placeholder="Select a class..."
+                        />
+                        <Button type="submit" className="w-full mt-2" loading={assignAdminMut.isPending}>Assign Admin Role</Button>
+                    </form>
+                </Dialog>
 
+                <Dialog open={!!revokeAdminId} onClose={() => setRevokeAdminId(null)} title="Revoke Admin Rights">
+                    <p className="text-sm text-muted-foreground mb-6">
+                        Are you sure? This user will become a regular student and lose access to task management.
+                    </p>
+                    <div className="flex gap-3">
+                        <Button variant="outline" className="flex-1" onClick={() => setRevokeAdminId(null)}>Cancel</Button>
+                        <Button variant="destructive" className="flex-1" loading={revokeAdminMut.isPending} onClick={async () => {
+                            if (revokeAdminId) await revokeAdminMut.mutateAsync(revokeAdminId)
+                            setRevokeAdminId(null)
+                        }}>Revoke Access</Button>
+                    </div>
+                </Dialog>
+
+            </div>
         </div>
     )
 }
