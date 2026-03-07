@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/store'
 
 export function useLeaderboard() {
-    const classId = useAppStore((s) => s.classId)
+    const classId = useAuthStore((s) => s.profile?.classId ?? null)
 
     return useQuery({
         queryKey: ['leaderboard', classId],

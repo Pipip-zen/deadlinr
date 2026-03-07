@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/store'
 import { formatDeadline } from '@/utils/date'
 
 export default function AdminDashboardPage() {
-    const classId = useAppStore((s) => s.classId)
+    const classId = useAuthStore((s) => s.profile?.classId ?? null)
 
     const { data: tasks, isLoading } = useQuery({
         queryKey: ['admin-tasks', classId],
@@ -37,7 +37,6 @@ export default function AdminDashboardPage() {
     return (
         <div className="space-y-6">
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-
             <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-xl border border-border bg-card p-4">
                     <p className="text-xs text-muted-foreground">Total Tasks</p>
@@ -48,7 +47,6 @@ export default function AdminDashboardPage() {
                     <p className="mt-1 text-3xl font-bold">{members?.length ?? '—'}</p>
                 </div>
             </div>
-
             <section>
                 <h2 className="mb-3 text-lg font-semibold">Tasks</h2>
                 {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}

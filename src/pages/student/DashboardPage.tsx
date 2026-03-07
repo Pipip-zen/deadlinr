@@ -1,18 +1,22 @@
 import { useTasks } from '@/hooks/useTasks'
+import { useAuthStore } from '@/lib/store'
 import { useAppStore } from '@/lib/store'
 import { rankLabel } from '@/utils/points'
 import { formatDeadline, isOverdue } from '@/utils/date'
 
 export default function DashboardPage() {
-    const { name, streakCount, totalPoints } = useAppStore()
+    const profile = useAuthStore((s) => s.profile)
+    const totalPoints = useAppStore((s) => s.totalPoints)
     const { data: tasks, isLoading } = useTasks()
 
+    const name = profile?.name ?? ''
+    const streakCount = profile?.streakCount ?? 0
     const upcoming = tasks?.filter((t) => !isOverdue(t.deadline)).slice(0, 5)
 
     return (
         <div className="space-y-6">
             <header>
-                <h1 className="text-2xl font-bold">Hello, {name?.split(' ')[0]} 👋</h1>
+                <h1 className="text-2xl font-bold">Hello, {name.split(' ')[0]} 👋</h1>
                 <p className="text-muted-foreground text-sm">
                     {rankLabel(totalPoints)} · {streakCount}-day streak 🔥
                 </p>

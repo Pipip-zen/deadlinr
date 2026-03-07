@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/store'
 import { cn } from '@/utils/cn'
 import { LayoutDashboard, PlusSquare, LogOut } from 'lucide-react'
 
@@ -10,12 +10,13 @@ const navItems = [
 ]
 
 export function AdminLayout() {
-    const { name, clearProfile } = useAppStore()
+    const { profile, clearAuth } = useAuthStore()
+    const name = profile?.name
     const navigate = useNavigate()
 
     async function handleSignOut() {
         await supabase.auth.signOut()
-        clearProfile()
+        clearAuth()
         navigate('/login')
     }
 

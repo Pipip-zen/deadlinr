@@ -1,54 +1,57 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/lib/store'
-import type { Session } from '@supabase/supabase-js'
+import { useAuthStore } from '@/lib/store'
+import type { AuthProfile } from '@/lib/store'
+
+async function fetchAndSetProfile(userId: string) {
+    const { data } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url, class_id, role, streak_count')
+        .eq('id', userId)
+        .single()
+
+    if (data) {
+        const profile: AuthProfile = {
+            id: data.id,
+            name: data.name,
+            avatarUrl: data.avatar_url,
+            classId: data.class_id,
+            role: data.role,
+            streakCount: data.streak_count,
+        }
+        useAuthStore.getState().setProfile(profile)
+    }
+}
 
 /**
- * Subscribes to Supabase auth state changes and syncs the user
- * profile into Zustand store on login/logout.
+ * Call once at the app root. Bootstraps auth state from Supabase
+ * and keeps it in sync via onAuthStateChange.
  */
 export function useAuthSession() {
-    const [session, setSession] = useState<Session | null>(null)
-    const [loading, setLoading] = useState(true)
-    const { setProfile, clearProfile } = useAppStore()
+    const { setSession, setLoading, clearAuth } = useAuthStore()
 
     useEffect(() => {
-        // Initial session
+        // 1. Hydrate from existing session
         supabase.auth.getSession().then(({ data }) => {
-            setSession(data.session)
-            setLoading(false)
+            const session = data.session
+            setSession(session)
+            if (session?.user) {
+                fetchAndSetProfile(session.user.id).finally(() => setLoading(false))
+            } else {
+                setLoading(false)
+            }
         })
 
-        // Listen for changes
+        // 2. Subscribe to future changes
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session)
-            if (!session) clearProfile()
+            if (session?.user) {
+                fetchAndSetProfile(session.user.id)
+            } else {
+                clearAuth()
+            }
         })
 
         return () => listener.subscription.unsubscribe()
-    }, [clearProfile])
-
-    useEffect(() => {
-        if (!session?.user) return
-
-        supabase
-            .from('profiles')
-            .select('id, name, avatar_url, class_id, role, streak_count')
-            .eq('id', session.user.id)
-            .single()
-            .then(({ data }) => {
-                if (data) {
-                    setProfile({
-                        userId: data.id,
-                        name: data.name,
-                        avatarUrl: data.avatar_url,
-                        classId: data.class_id,
-                        role: data.role,
-                        streakCount: data.streak_count,
-                    })
-                }
-            })
-    }, [session, setProfile])
-
-    return { session, loading }
+    }, [setSession, setLoading, clearAuth])
 }

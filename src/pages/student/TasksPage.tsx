@@ -2,40 +2,39 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTasks } from '@/hooks/useTasks'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/store'
 import { formatDeadline, isOverdue } from '@/utils/date'
 import { calcPoints } from '@/utils/points'
 
 export default function TasksPage() {
     const { data: tasks, isLoading } = useTasks()
-    const { userId, classId, streakCount } = useAppStore()
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
+    const classId = profile?.classId ?? null
+    const streak = profile?.streakCount ?? 0
     const qc = useQueryClient()
     const [completing, setCompleting] = useState<string | null>(null)
 
     const completeMutation = useMutation({
         mutationFn: async (taskId: string) => {
             const task = tasks?.find((t) => t.id === taskId)
-            if (!task) return
-            const pts = calcPoints(task.deadline, new Date(), streakCount)
+            if (!task || !userId) return
+            const pts = calcPoints(task.deadline, new Date(), streak)
             const { error } = await supabase.from('task_completions').insert({
                 task_id: taskId,
-                user_id: userId!,
+                user_id: userId,
                 points_earned: pts,
             })
             if (error) throw error
         },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['tasks', classId] })
-        },
+        onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', classId] }),
         onSettled: () => setCompleting(null),
     })
 
     return (
         <div className="space-y-4">
             <h1 className="text-2xl font-bold">My Tasks</h1>
-
             {isLoading && <p className="text-sm text-muted-foreground">Loading tasks…</p>}
-
             <ul className="space-y-3">
                 {tasks?.map((task) => {
                     const overdue = isOverdue(task.deadline)

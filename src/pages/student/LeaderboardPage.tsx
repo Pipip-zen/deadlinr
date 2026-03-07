@@ -1,17 +1,15 @@
 import { useLeaderboard } from '@/hooks/useLeaderboard'
-import { useAppStore } from '@/lib/store'
+import { useAuthStore } from '@/lib/store'
 import { rankLabel } from '@/utils/points'
 
 export default function LeaderboardPage() {
     const { data: board, isLoading } = useLeaderboard()
-    const userId = useAppStore((s) => s.userId)
+    const userId = useAuthStore((s) => s.profile?.id ?? null)
 
     return (
         <div className="space-y-4">
             <h1 className="text-2xl font-bold">Leaderboard 🏆</h1>
-
             {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-
             <ol className="space-y-2">
                 {board?.map((entry, idx) => {
                     const profile = (entry as any).profiles

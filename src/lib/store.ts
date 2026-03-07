@@ -1,72 +1,64 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { Session } from '@supabase/supabase-js'
 import type { UserRole } from '@/types/database'
 
-// ---- Auth / Profile slice ----
-interface ProfileState {
-    userId: string | null
+// ---- Auth store (session + profile + loading, NOT persisted) ----
+
+export interface AuthProfile {
+    id: string
     name: string | null
     avatarUrl: string | null
     classId: string | null
-    role: UserRole | null
+    role: UserRole
     streakCount: number
-    totalPoints: number
 }
 
-interface ProfileActions {
-    setProfile: (profile: Partial<ProfileState>) => void
-    clearProfile: () => void
+interface AuthState {
+    session: Session | null
+    profile: AuthProfile | null
+    loading: boolean
 }
 
-// ---- UI slice ----
+interface AuthActions {
+    setSession: (session: Session | null) => void
+    setProfile: (profile: AuthProfile | null) => void
+    setLoading: (loading: boolean) => void
+    clearAuth: () => void
+}
+
+export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
+    session: null,
+    profile: null,
+    loading: true,
+    setSession: (session) => set({ session }),
+    setProfile: (profile) => set({ profile }),
+    setLoading: (loading) => set({ loading }),
+    clearAuth: () => set({ session: null, profile: null, loading: false }),
+}))
+
+// ---- App store (UI + points cache, persisted) ----
+
 interface UIState {
     sidebarOpen: boolean
+    totalPoints: number
 }
 
 interface UIActions {
     toggleSidebar: () => void
     setSidebarOpen: (open: boolean) => void
+    setTotalPoints: (pts: number) => void
 }
 
-// ---- Combined store ----
-type AppStore = ProfileState & ProfileActions & UIState & UIActions
-
-const initialProfile: ProfileState = {
-    userId: null,
-    name: null,
-    avatarUrl: null,
-    classId: null,
-    role: null,
-    streakCount: 0,
-    totalPoints: 0,
-}
-
-export const useAppStore = create<AppStore>()(
+export const useAppStore = create<UIState & UIActions>()(
     persist(
         (set) => ({
-            // Profile
-            ...initialProfile,
-            setProfile: (profile) => set((state) => ({ ...state, ...profile })),
-            clearProfile: () => set(initialProfile),
-
-            // UI
             sidebarOpen: true,
-            toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+            totalPoints: 0,
+            toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
             setSidebarOpen: (open) => set({ sidebarOpen: open }),
+            setTotalPoints: (pts) => set({ totalPoints: pts }),
         }),
-        {
-            name: 'tasktrack-store',
-            // Only persist profile & sidebar preference
-            partialize: (state) => ({
-                userId: state.userId,
-                name: state.name,
-                avatarUrl: state.avatarUrl,
-                classId: state.classId,
-                role: state.role,
-                streakCount: state.streakCount,
-                totalPoints: state.totalPoints,
-                sidebarOpen: state.sidebarOpen,
-            }),
-        }
+        { name: 'tasktrack-ui' }
     )
 )
