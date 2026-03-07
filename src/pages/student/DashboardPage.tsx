@@ -4,7 +4,8 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { CheckCircle, Clock, AlertTriangle, ListTodo } from 'lucide-react'
 
-import { useDashboard, useCompleteTask } from '@/hooks/useDashboard'
+import { useDashboard } from '@/hooks/useDashboard'
+import { useCompleteTaskEdge } from '@/hooks/useCompleteTaskEdge'
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks'
 import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -148,7 +149,7 @@ function DashboardContent() {
     const profile = useAuthStore((s) => s.profile)
     const totalPts = useAuthStore((s) => s.profile?.streakCount ?? 0) // placeholder
     const { tasks, summary, isLoading } = useDashboard()
-    const completeTask = useCompleteTask()
+    const completeTask = useCompleteTaskEdge()
     const [completing, setCompleting] = useState<string | null>(null)
 
     // Realtime subscription
@@ -175,14 +176,12 @@ function DashboardContent() {
         setToasted(true)
     }, [tasks, toasted])
 
-    // Mark done handler
-    async function handleComplete(taskId: string, deadline: string) {
+    async function handleComplete(taskId: string, _deadline: string) {
         setCompleting(taskId)
         try {
-            await completeTask.mutateAsync({ taskId, deadline })
-            toast.success('Task marked as done! 🎉')
+            await completeTask.mutateAsync(taskId)
         } catch {
-            toast.error('Failed to mark task. Try again.')
+            // error toast handled inside the hook
         } finally {
             setCompleting(null)
         }
