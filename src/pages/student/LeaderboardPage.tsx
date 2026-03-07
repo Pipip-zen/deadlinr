@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
     useReactTable,
     getCoreRowModel,
@@ -11,8 +11,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 import { useLeaderboard, useRealtimeLeaderboard } from '@/hooks/useLeaderboard'
+import { useClasses } from '@/hooks/useClasses'
 import { useAuthStore } from '@/lib/store'
 import { Avatar } from '@/components/ui/avatar'
+import { Select } from '@/components/ui/select'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import type { LeaderboardEntry } from '@/hooks/useLeaderboard'
 
@@ -60,9 +62,24 @@ function LeaderboardRow({
 
 // ── Main leaderboard component ────────────────────────────────
 function LeaderboardContent() {
-    const userId = useAuthStore((s) => s.profile?.id ?? null)
-    const { data: entries = [], isLoading } = useLeaderboard()
-    useRealtimeLeaderboard()
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
+    const myClassId = profile?.classId ?? null
+
+    const [selectedClassId, setSelectedClassId] = useState<string | null>(myClassId)
+
+    const { data: classes = [], isLoading: loadingClasses } = useClasses()
+
+    // If no class selected and classes loaded, pick the first one
+    useEffect(() => {
+        if (!selectedClassId && classes.length > 0) {
+            setSelectedClassId(classes[0].id)
+        }
+    }, [classes, selectedClassId])
+
+    const { data: entries = [], isLoading: loadingLeaderboard } = useLeaderboard(selectedClassId)
+    useRealtimeLeaderboard(selectedClassId)
+    const isLoading = loadingClasses || loadingLeaderboard
 
     const [sorting, setSorting] = useState<SortingState>([])
 
@@ -139,11 +156,25 @@ function LeaderboardContent() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold">Leaderboard 🏆</h1>
-                <p className="text-sm text-muted-foreground">
-                    Class rankings · updates in real-time
-                </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Leaderboard 🏆</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Class rankings · updates in real-time
+                    </p>
+                </div>
+                {classes.length > 0 && (
+                    <div className="w-full sm:w-64">
+                        <Select
+                            options={classes.map((c) => ({
+                                value: c.id,
+                                label: c.id === myClassId ? `${c.name} (My Class)` : c.name,
+                            }))}
+                            value={selectedClassId ?? ''}
+                            onChange={(e) => setSelectedClassId(e.target.value)}
+                        />
+                    </div>
+                )}
             </div>
 
             {isLoading ? (

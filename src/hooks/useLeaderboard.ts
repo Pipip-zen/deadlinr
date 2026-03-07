@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/lib/store'
 
 export interface LeaderboardEntry {
     user_id: string
@@ -12,13 +11,11 @@ export interface LeaderboardEntry {
     rank: number
 }
 
-export function useLeaderboard() {
-    const profile = useAuthStore((s) => s.profile)
-    const classId = profile?.classId ?? null
-
+export function useLeaderboard(classId: string | null) {
     return useQuery({
         queryKey: ['leaderboard', classId],
         queryFn: async (): Promise<LeaderboardEntry[]> => {
+            if (!classId) return []
             // Join student_points → profiles scoped to current class, top 50
             const { data, error } = await supabase
                 .from('student_points')
@@ -32,7 +29,7 @@ export function useLeaderboard() {
             streak_count
           )
         `)
-                .eq('profiles.class_id', classId!)
+                .eq('profiles.class_id', classId)
                 .order('total_points', { ascending: false })
                 .limit(50)
 
@@ -53,10 +50,8 @@ export function useLeaderboard() {
 }
 
 /** Realtime subscription: student_points changes → invalidate leaderboard query */
-export function useRealtimeLeaderboard() {
+export function useRealtimeLeaderboard(classId: string | null) {
     const qc = useQueryClient()
-    const profile = useAuthStore((s) => s.profile)
-    const classId = profile?.classId ?? null
 
     useEffect(() => {
         if (!classId) return
