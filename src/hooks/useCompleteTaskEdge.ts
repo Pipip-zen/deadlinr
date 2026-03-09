@@ -70,15 +70,20 @@ export function useCompleteTaskEdge() {
 
             const classId = profile?.classId
             const userId = profile?.id
+            // Invalidate all relevant caches so both dashboard and tasks page update immediately
             qc.invalidateQueries({ queryKey: ['dashboard-tasks', classId] })
             qc.invalidateQueries({ queryKey: ['dashboard-completions', userId] })
             qc.invalidateQueries({ queryKey: ['tasks', classId] })
+            qc.invalidateQueries({ queryKey: ['task-completions', userId] })
             qc.invalidateQueries({ queryKey: ['leaderboard', classId] })
             qc.invalidateQueries({ queryKey: ['student_points'] })
         },
 
         onError: (error: Error) => {
-            toast.error(`Gagal mengerjakan tugas: ${error.message}`)
+            const msg = error.message.includes('duplicate') || error.message.includes('unique')
+                ? 'Tugas ini sudah kamu kerjakan sebelumnya!'
+                : `Gagal mengerjakan tugas: ${error.message}`
+            toast.error(msg)
         },
     })
 }
