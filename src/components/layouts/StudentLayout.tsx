@@ -2,18 +2,16 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/lib/store'
 import { cn } from '@/utils/cn'
-import { LayoutDashboard, CheckSquare, Trophy, LogOut } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, LogOut } from 'lucide-react'
 
 const navItems = [
-    { to: '/student/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/student/tasks', icon: CheckSquare, label: 'Tasks' },
-    { to: '/student/leaderboard', icon: Trophy, label: 'Leaderboard' },
+    { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
 ]
 
 export function StudentLayout() {
     const { profile, clearAuth } = useAuthStore()
     const name = profile?.name
-    const streakCount = profile?.streakCount ?? 0
     const navigate = useNavigate()
 
     async function handleSignOut() {
@@ -28,7 +26,6 @@ export function StudentLayout() {
             <aside className="flex w-60 flex-col border-r border-border bg-card px-4 py-6">
                 <div className="mb-8">
                     <h1 className="text-xl font-bold tracking-tight text-primary">Deadlinr</h1>
-                    <p className="mt-1 text-xs text-muted-foreground">🔥 {streakCount}-day streak</p>
                 </div>
 
                 <nav className="flex-1 space-y-1">

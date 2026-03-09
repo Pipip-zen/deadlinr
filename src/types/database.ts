@@ -6,7 +6,7 @@ export type Json =
     | { [key: string]: Json | undefined }
     | Json[]
 
-export type UserRole = 'student' | 'admin' | 'superadmin'
+export type TaskStatus = 'pending' | 'done' | 'overdue'
 
 export type Database = {
     public: {
@@ -59,9 +59,6 @@ export type Database = {
                     name: string | null
                     avatar_url: string | null
                     class_id: string | null
-                    role: UserRole
-                    streak_count: number
-                    last_active_date: string | null
                     created_at: string
                 }
                 Insert: {
@@ -69,9 +66,6 @@ export type Database = {
                     name?: string | null
                     avatar_url?: string | null
                     class_id?: string | null
-                    role?: UserRole
-                    streak_count?: number
-                    last_active_date?: string | null
                     created_at?: string
                 }
                 Update: {
@@ -79,9 +73,6 @@ export type Database = {
                     name?: string | null
                     avatar_url?: string | null
                     class_id?: string | null
-                    role?: UserRole
-                    streak_count?: number
-                    last_active_date?: string | null
                     created_at?: string
                 }
                 Relationships: [
@@ -102,7 +93,8 @@ export type Database = {
                     title: string
                     description: string | null
                     deadline: string
-                    created_by: string
+                    user_id: string
+                    status: TaskStatus
                     created_at: string
                 }
                 Insert: {
@@ -112,7 +104,8 @@ export type Database = {
                     title: string
                     description?: string | null
                     deadline: string
-                    created_by: string
+                    user_id: string
+                    status?: TaskStatus
                     created_at?: string
                 }
                 Update: {
@@ -122,7 +115,8 @@ export type Database = {
                     title?: string
                     description?: string | null
                     deadline?: string
-                    created_by?: string
+                    user_id?: string
+                    status?: TaskStatus
                     created_at?: string
                 }
                 Relationships: [
@@ -132,65 +126,20 @@ export type Database = {
                         isOneToOne: false
                         referencedRelation: 'classes'
                         referencedColumns: ['id']
-                    }
-                ]
-            }
-            task_completions: {
-                Row: {
-                    id: string
-                    task_id: string
-                    user_id: string
-                    completed_at: string
-                    points_earned: number
-                }
-                Insert: {
-                    id?: string
-                    task_id: string
-                    user_id: string
-                    completed_at?: string
-                    points_earned?: number
-                }
-                Update: {
-                    id?: string
-                    task_id?: string
-                    user_id?: string
-                    completed_at?: string
-                    points_earned?: number
-                }
-                Relationships: [
+                    },
                     {
-                        foreignKeyName: 'task_completions_task_id_fkey'
-                        columns: ['task_id']
+                        foreignKeyName: 'tasks_user_id_fkey'
+                        columns: ['user_id']
                         isOneToOne: false
-                        referencedRelation: 'tasks'
+                        referencedRelation: 'profiles'
                         referencedColumns: ['id']
                     }
                 ]
             }
-            student_points: {
-                Row: {
-                    user_id: string
-                    total_points: number
-                    updated_at: string
-                }
-                Insert: {
-                    user_id: string
-                    total_points?: number
-                    updated_at?: string
-                }
-                Update: {
-                    user_id?: string
-                    total_points?: number
-                    updated_at?: string
-                }
-                Relationships: []
-            }
         }
         Views: { [_ in never]: never }
         Functions: { [_ in never]: never }
-        Enums: {
-            user_role: UserRole
-        }
+        Enums: { [_ in never]: never }
         CompositeTypes: { [_ in never]: never }
     }
 }
@@ -199,5 +148,4 @@ export type Database = {
 export type ClassRow = Database['public']['Tables']['classes']['Row']
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type TaskRow = Database['public']['Tables']['tasks']['Row']
-export type TaskCompletionRow = Database['public']['Tables']['task_completions']['Row']
-export type StudentPointsRow = Database['public']['Tables']['student_points']['Row']
+export type CourseRow = Database['public']['Tables']['courses']['Row']

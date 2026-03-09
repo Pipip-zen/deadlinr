@@ -146,7 +146,6 @@ function SetupWizard() {
                 name,
                 avatar_url: avatarUrl,
                 class_id: classId || null,
-                role: 'student',
             })
             if (error) throw error
             setProfile({
@@ -154,10 +153,8 @@ function SetupWizard() {
                 name,
                 avatarUrl,
                 classId: classId || null,
-                role: 'student',
-                streakCount: 0,
             })
-            navigate('/student/dashboard', { replace: true })
+            navigate('/dashboard', { replace: true })
         } catch (e) {
             setError((e as Error).message)
         } finally {

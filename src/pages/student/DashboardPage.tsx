@@ -4,22 +4,19 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
 import { CheckCircle, Clock, AlertTriangle, ListTodo } from 'lucide-react'
 
-import { useDashboard } from '@/hooks/useDashboard'
-import { useCompleteTaskEdge } from '@/hooks/useCompleteTaskEdge'
+import { useDashboard, useCompleteTask } from '@/hooks/useDashboard'
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks'
 import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Button } from '@/components/ui/button'
-import { rankLabel } from '@/utils/points'
 import { daysUntil, formatDeadline } from '@/utils/date'
-import type { TaskWithStatus } from '@/hooks/useDashboard'
+import type { TaskWithStatus } from '@/hooks/useTasks'
 
 // ── Status theme ──────────────────────────────────────────────
 const STATUS = {
-    completed: { label: 'Completed', color: '#22c55e', bg: 'bg-green-500/10', text: 'text-green-500' },
+    done: { label: 'Completed', color: '#22c55e', bg: 'bg-green-500/10', text: 'text-green-500' },
     overdue: { label: 'Overdue', color: '#ef4444', bg: 'bg-red-500/10', text: 'text-red-500' },
-    'due-soon': { label: 'Due Soon', color: '#f59e0b', bg: 'bg-amber-500/10', text: 'text-amber-500' },
-    upcoming: { label: 'Upcoming', color: '#6366f1', bg: 'bg-indigo-500/10', text: 'text-indigo-500' },
+    pending: { label: 'Pending', color: '#f59e0b', bg: 'bg-amber-500/10', text: 'text-amber-500' },
 }
 
 // ── Summary card ──────────────────────────────────────────────
@@ -65,7 +62,7 @@ interface TaskCardProps {
 }
 function TaskCard({ task, onComplete, completing }: TaskCardProps) {
     const days = daysUntil(task.deadline)
-    const isDone = task.status === 'completed'
+    const isDone = task.status === 'done'
 
     return (
         <motion.li
@@ -147,9 +144,8 @@ function TaskGroup({
 // ── Main dashboard component ──────────────────────────────────
 function DashboardContent() {
     const profile = useAuthStore((s) => s.profile)
-    const totalPts = useAuthStore((s) => s.profile?.streakCount ?? 0) // placeholder
     const { tasks, summary, isLoading } = useDashboard()
-    const completeTask = useCompleteTaskEdge()
+    const completeTask = useCompleteTask()
     const [completing, setCompleting] = useState<string | null>(null)
 
     // Realtime subscription
@@ -160,11 +156,14 @@ function DashboardContent() {
     useEffect(() => {
         if (toasted || tasks.length === 0) return
         const soon = tasks.filter(
-            (t) => t.status === 'due-soon' || t.status === 'overdue'
+            (t) => t.status === 'pending' || t.status === 'overdue'
         )
         if (soon.length === 0) return
         soon.forEach((t, i) => {
             const days = daysUntil(t.deadline)
+            // Only warn if due within 3 days
+            if (days > 3 && t.status !== 'overdue') return
+
             const msg =
                 days < 0 ? `"${t.title}" is ${Math.abs(days)}d overdue!` :
                     days === 0 ? `"${t.title}" is due today!` :
@@ -189,14 +188,13 @@ function DashboardContent() {
 
     // Grouped tasks (exclude completed from list)
     const overdue = tasks.filter((t) => t.status === 'overdue')
-    const dueSoon = tasks.filter((t) => t.status === 'due-soon')
-    const upcoming = tasks.filter((t) => t.status === 'upcoming')
+    const pending = tasks.filter((t) => t.status === 'pending')
 
     // Donut data
     const chartData = [
-        { name: 'Completed', value: summary.completed, color: STATUS.completed.color },
+        { name: 'Completed', value: summary.completed, color: STATUS.done.color },
         { name: 'Overdue', value: summary.overdue, color: STATUS.overdue.color },
-        { name: 'In Progress', value: summary.inProgress, color: STATUS['due-soon'].color },
+        { name: 'Pending', value: summary.inProgress, color: STATUS.pending.color },
     ].filter((d) => d.value > 0)
 
     return (
@@ -207,7 +205,7 @@ function DashboardContent() {
                     Hello, {profile?.name?.split(' ')[0] ?? 'there'} 👋
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                    {rankLabel(totalPts)} · Here's your class overview
+                    Here's your class overview
                 </p>
             </div>
 
@@ -215,7 +213,7 @@ function DashboardContent() {
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <SummaryCard label="Total Tasks" value={summary.total} icon={ListTodo} colorClass="bg-indigo-500/10 text-indigo-500" delay={0} />
                 <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-green-500/10  text-green-500" delay={0.07} />
-                <SummaryCard label="In Progress" value={summary.inProgress} icon={Clock} colorClass="bg-amber-500/10  text-amber-500" delay={0.14} />
+                <SummaryCard label="Pending" value={summary.inProgress} icon={Clock} colorClass="bg-amber-500/10  text-amber-500" delay={0.14} />
                 <SummaryCard label="Overdue" value={summary.overdue} icon={AlertTriangle} colorClass="bg-red-500/10    text-red-500" delay={0.21} />
             </div>
 
@@ -280,8 +278,7 @@ function DashboardContent() {
                     <p className="text-sm text-muted-foreground">No tasks yet for your class 🎉</p>
                 )}
                 <TaskGroup title="Overdue" tasks={overdue} onComplete={handleComplete} completing={completing} />
-                <TaskGroup title="Due Soon" tasks={dueSoon} onComplete={handleComplete} completing={completing} />
-                <TaskGroup title="Upcoming" tasks={upcoming} onComplete={handleComplete} completing={completing} />
+                <TaskGroup title="Pending" tasks={pending} onComplete={handleComplete} completing={completing} />
             </div>
         </div>
     )

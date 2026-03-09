@@ -4,7 +4,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 
 import { useTasks, type TaskWithStatus } from '@/hooks/useTasks'
-import { useCompleteTaskEdge } from '@/hooks/useCompleteTaskEdge'
+import { useCompleteTask } from '@/hooks/useDashboard'
 import { Button } from '@/components/ui/button'
 
 // ── Status config ─────────────────────────────────────────────
@@ -17,7 +17,7 @@ const STATUS_CONFIG = {
         icon: Clock,
         iconCls: 'text-muted-foreground',
     },
-    completed: {
+    done: {
         badge: 'Completed',
         badgeCls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400',
         border: 'border-emerald-400/60',
@@ -39,9 +39,6 @@ const STATUS_CONFIG = {
 function deadlineLabel(task: TaskWithStatus): string {
     const now = new Date()
     const dl = new Date(task.deadline)
-    if (task.status === 'completed' && task.completedAt) {
-        return `Done on ${format(new Date(task.completedAt), 'MMM d, HH:mm')}`
-    }
     if (task.status === 'overdue') {
         return `${formatDistanceToNow(dl, { addSuffix: false })} overdue`
     }
@@ -77,14 +74,9 @@ function TaskCard({ task, onDone, loading }: { task: TaskWithStatus; onDone: () 
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.badgeCls}`}>
                         {cfg.badge}
                     </span>
-                    {task.status === 'completed' && task.pointsEarned != null && (
-                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
-                            +{task.pointsEarned} pts
-                        </span>
-                    )}
                 </div>
 
-                <p className={`font-semibold ${task.status === 'completed' ? 'text-muted-foreground line-through' : ''}`}>
+                <p className={`font-semibold ${task.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
                     {task.title}
                 </p>
 
@@ -93,19 +85,20 @@ function TaskCard({ task, onDone, loading }: { task: TaskWithStatus; onDone: () 
                 )}
 
                 <p className={`mt-1 text-xs font-medium ${task.status === 'overdue' ? 'text-rose-500' :
-                        task.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400' :
-                            'text-muted-foreground'
+                    task.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' :
+                        'text-muted-foreground'
                     }`}>
-                    {deadlineLabel(task)}
+                    {task.status !== 'done' && deadlineLabel(task)}
                     <span className="ml-1 font-normal text-muted-foreground">
-                        · {format(new Date(task.deadline), 'MMM d, yyyy')}
+                        {task.status !== 'done' && ' · '}
+                        {format(new Date(task.deadline), 'MMM d, yyyy')}
                     </span>
                 </p>
             </div>
 
             {/* Action */}
             <div className="shrink-0">
-                {task.status === 'completed' ? (
+                {task.status === 'done' ? (
                     <div className="flex items-center gap-1.5 rounded-xl bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
                         <CheckCircle2 size={13} />
                         Completed
@@ -130,19 +123,19 @@ function TaskCard({ task, onDone, loading }: { task: TaskWithStatus; onDone: () 
 // ── Main page ─────────────────────────────────────────────────
 export default function TasksPage() {
     const { tasks, isLoading, error } = useTasks()
-    const completeTask = useCompleteTaskEdge()
+    const completeTask = useCompleteTask()
 
     async function handleDone(taskId: string) {
         try {
             await completeTask.mutateAsync(taskId)
         } catch {
-            // error toast handled in hook
+            toast.error('Gagal menyelesaikan tugas')
         }
     }
 
     const pending = tasks.filter((t) => t.status === 'pending')
     const overdue = tasks.filter((t) => t.status === 'overdue')
-    const completed = tasks.filter((t) => t.status === 'completed')
+    const completed = tasks.filter((t) => t.status === 'done')
 
     if (error) {
         toast.error('Gagal memuat tasks')

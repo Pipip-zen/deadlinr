@@ -11,32 +11,24 @@ import { ProtectedRoute } from '@/components/shared/ProtectedRoute'
 import { OnboardingGuard } from '@/components/shared/OnboardingGuard'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { StudentLayout } from '@/components/layouts/StudentLayout'
-import { AdminLayout } from '@/components/layouts/AdminLayout'
 
 import LoginPage from '@/pages/auth/LoginPage'
 import AuthCallbackPage from '@/pages/auth/AuthCallbackPage'
 import SetupPage from '@/pages/onboarding/SetupPage'
 import DashboardPage from '@/pages/student/DashboardPage'
 import TasksPage from '@/pages/student/TasksPage'
-import LeaderboardPage from '@/pages/student/LeaderboardPage'
-import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
-import CreateTaskPage from '@/pages/admin/CreateTaskPage'
-import CoursesPage from '@/pages/admin/CoursesPage'
-import SuperadminDashboardPage from '@/pages/superadmin/SuperadminDashboardPage'
 
 function AppRoutes() {
     useAuthSession() // bootstrap auth at root level
 
     const { session, profile, loading } = useAuthStore()
 
-    // Smart root redirect based on role
+    // Smart root redirect based on auth status
     function RootRedirect() {
         if (loading) return null
         if (!session) return <Navigate to="/login" replace />
         if (!profile?.name) return <Navigate to="/setup" replace />
-        if (profile.role === 'superadmin') return <Navigate to="/superadmin/dashboard" replace />
-        if (profile.role === 'admin') return <Navigate to="/admin/dashboard" replace />
-        return <Navigate to="/student/dashboard" replace />
+        return <Navigate to="/dashboard" replace />
     }
 
     return (
@@ -50,32 +42,14 @@ function AppRoutes() {
                 <Route path="/setup" element={<SetupPage />} />
             </Route>
 
-            {/* Student — needs session + complete profile */}
-            <Route element={<ProtectedRoute allowedRoles={['student', 'admin', 'superadmin']} />}>
+            {/* Main App — needs session + complete profile */}
+            <Route element={<ProtectedRoute />}>
                 <Route element={<OnboardingGuard />}>
                     <Route element={<StudentLayout />}>
-                        <Route path="/student/dashboard" element={<DashboardPage />} />
-                        <Route path="/student/tasks" element={<TasksPage />} />
-                        <Route path="/student/leaderboard" element={<LeaderboardPage />} />
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/tasks" element={<TasksPage />} />
+                        {/* Leaderboard removed as per gamification removal */}
                     </Route>
-                </Route>
-            </Route>
-
-            {/* Admin */}
-            <Route element={<ProtectedRoute allowedRoles={['admin', 'superadmin']} />}>
-                <Route element={<OnboardingGuard />}>
-                    <Route element={<AdminLayout />}>
-                        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-                        <Route path="/admin/create-task" element={<CreateTaskPage />} />
-                        <Route path="/admin/courses" element={<CoursesPage />} />
-                    </Route>
-                </Route>
-            </Route>
-
-            {/* Superadmin */}
-            <Route element={<ProtectedRoute allowedRoles={['superadmin']} />}>
-                <Route element={<OnboardingGuard />}>
-                    <Route path="/superadmin/dashboard" element={<SuperadminDashboardPage />} />
                 </Route>
             </Route>
 

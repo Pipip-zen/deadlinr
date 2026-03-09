@@ -6,7 +6,7 @@ import type { AuthProfile } from '@/lib/store'
 async function fetchAndSetProfile(userId: string) {
     const { data } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, class_id, role, streak_count')
+        .select('id, name, avatar_url, class_id')
         .eq('id', userId)
         .single()
 
@@ -16,8 +16,6 @@ async function fetchAndSetProfile(userId: string) {
             name: data.name,
             avatarUrl: data.avatar_url,
             classId: data.class_id,
-            role: data.role,
-            streakCount: data.streak_count,
         }
         useAuthStore.getState().setProfile(profile)
     }

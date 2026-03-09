@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Session } from '@supabase/supabase-js'
-import type { UserRole } from '@/types/database'
 
 // ---- Auth store (session + profile + loading, NOT persisted) ----
 
@@ -10,8 +9,6 @@ export interface AuthProfile {
     name: string | null
     avatarUrl: string | null
     classId: string | null
-    role: UserRole
-    streakCount: number
 }
 
 interface AuthState {
@@ -37,27 +34,23 @@ export const useAuthStore = create<AuthState & AuthActions>()((set) => ({
     clearAuth: () => set({ session: null, profile: null, loading: false }),
 }))
 
-// ---- App store (UI + points cache, persisted) ----
+// ---- App store (UI cache, persisted) ----
 
 interface UIState {
     sidebarOpen: boolean
-    totalPoints: number
 }
 
 interface UIActions {
     toggleSidebar: () => void
     setSidebarOpen: (open: boolean) => void
-    setTotalPoints: (pts: number) => void
 }
 
 export const useAppStore = create<UIState & UIActions>()(
     persist(
         (set) => ({
             sidebarOpen: true,
-            totalPoints: 0,
             toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
             setSidebarOpen: (open) => set({ sidebarOpen: open }),
-            setTotalPoints: (pts) => set({ totalPoints: pts }),
         }),
         { name: 'tasktrack-ui' }
     )
