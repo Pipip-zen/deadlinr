@@ -60,8 +60,6 @@ export function useCreateTask() {
                 .from('tasks')
                 .insert({
                     user_id: userId,
-                    class_id: '', // Legacy
-                    course_name: '', // Legacy
                     course_id: newTask.course_id,
                     title: newTask.title,
                     description: newTask.description || null,

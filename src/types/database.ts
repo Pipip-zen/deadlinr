@@ -99,9 +99,7 @@ export type Database = {
             tasks: {
                 Row: {
                     id: string
-                    class_id: string
                     course_id: string | null
-                    course_name: string
                     title: string
                     description: string | null
                     deadline: string
@@ -112,9 +110,7 @@ export type Database = {
                 }
                 Insert: {
                     id?: string
-                    class_id: string
                     course_id?: string | null
-                    course_name: string
                     title: string
                     description?: string | null
                     deadline: string
@@ -125,9 +121,7 @@ export type Database = {
                 }
                 Update: {
                     id?: string
-                    class_id?: string
                     course_id?: string | null
-                    course_name?: string
                     title?: string
                     description?: string | null
                     deadline?: string
@@ -138,10 +132,10 @@ export type Database = {
                 }
                 Relationships: [
                     {
-                        foreignKeyName: 'tasks_class_id_fkey'
-                        columns: ['class_id']
+                        foreignKeyName: 'tasks_course_id_fkey'
+                        columns: ['course_id']
                         isOneToOne: false
-                        referencedRelation: 'classes'
+                        referencedRelation: 'courses'
                         referencedColumns: ['id']
                     },
                     {
