@@ -117,24 +117,3 @@ export function useDeleteTask() {
     })
 }
 
-export function useMarkDone() {
-    const qc = useQueryClient()
-    const profile = useAuthStore((s) => s.profile)
-    const userId = profile?.id ?? null
-
-    return useMutation({
-        mutationFn: async (id: string) => {
-            if (!userId) throw new Error('Not authenticated')
-            const { error } = await supabase
-                .from('tasks')
-                .update({ status: 'done', completed_at: new Date().toISOString() })
-                .eq('id', id)
-                .eq('user_id', userId)
-
-            if (error) throw error
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['tasks', userId] })
-        },
-    })
-}

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 
 import { useDashboard } from '@/hooks/useDashboard'
+import { useMarkTaskDone } from '@/hooks/useMarkTaskDone'
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks'
 import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -142,10 +143,12 @@ function DashboardContent() {
         setToasted(true)
     }, [allTasks, toasted])
 
+    const markDone = useMarkTaskDone()
+
     async function handleComplete(taskId: string, _deadline: string) {
         setCompleting(taskId)
         try {
-            // await completeTask.mutateAsync(taskId) // This line was removed as per instructions
+            await markDone.mutateAsync(taskId)
         } catch {
             // error toast handled inside the hook
         } finally {
@@ -172,101 +175,94 @@ function DashboardContent() {
                 </p>
             </div>
 
-            {/* Summary cards (Pending, Completed, Overdue) */}
+            {/* Row 1: Summary cards (Pending, Completed, Overdue) */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <SummaryCard label="Pending" value={summary.pending} icon={Clock} colorClass="bg-amber-500/10 text-amber-500" delay={0} />
                 <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-green-500/10 text-green-500" delay={0.07} />
                 <SummaryCard label="Overdue" value={summary.overdue} icon={AlertTriangle} colorClass="bg-red-500/10 text-red-500" delay={0.14} />
             </div>
 
-            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-
-                {/* Left Column: Donut Chart & Quick Add Form */}
-                <div className="space-y-8">
-                    {/* Donut Chart */}
-                    {!isLoading && summary.total > 0 ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: 16 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
-                        >
-                            <h2 className="text-lg font-semibold">Task Breakdown</h2>
-                            <div className="flex flex-col md:flex-row md:items-center gap-6">
-                                <div className="mx-auto h-64 w-full md:h-52 md:w-52 shrink-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={chartData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={70}
-                                                outerRadius={100}
-                                                dataKey="value"
-                                                strokeWidth={0}
-                                                labelLine={false}
-                                            >
-                                                {chartData.map((entry) => (
-                                                    <Cell key={entry.name} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(v: any, n: any) => [`${v} tasks`, n]}
-                                                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
-                                            />
-                                            {/* Center total */}
-                                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                                                <tspan fontSize={32} fontWeight={700} fill="currentColor">{summary.total}</tspan>
-                                                <tspan x="50%" dy={24} fontSize={12} fill="#888">tasks</tspan>
-                                            </text>
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-
-                                {/* Legend */}
-                                <div className="flex flex-row md:flex-col flex-wrap justify-center gap-4 md:gap-3">
-                                    {chartData.map((d) => (
-                                        <div key={d.name} className="flex items-center gap-2 min-w-[100px] md:min-w-0">
-                                            <span className="h-3 w-3 rounded-full shrink-0" style={{ background: d.color }} />
-                                            <span className="text-sm font-medium">{d.name}</span>
-                                            <span className="text-sm font-bold text-muted-foreground ml-auto">{d.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-                    ) : null}
-                </div>
-
-                {/* Right Column: Recent Tasks */}
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold">Recent Tasks</h2>
-                        <span className="text-xs text-muted-foreground">Latest 5 tasks</span>
-                    </div>
-                    {isLoading && (
-                        <p className="text-sm text-muted-foreground">Loading tasks…</p>
-                    )}
-                    {!isLoading && summary.total === 0 && (
-                        <p className="text-sm text-muted-foreground italic">No tasks created yet 🎉</p>
-                    )}
-
-                    {recentTasks.length > 0 && (
-                        <ul className="space-y-3">
-                            <AnimatePresence mode="popLayout">
-                                {recentTasks.map((t) => (
-                                    <TaskCard
-                                        key={t.id}
-                                        task={t}
-                                        completing={completing === t.id}
-                                        onComplete={() => handleComplete(t.id, t.deadline)}
+            {/* Row 2: Donut Chart */}
+            {!isLoading && summary.total > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
+                >
+                    <h2 className="text-lg font-semibold">Task Breakdown</h2>
+                    <div className="flex flex-col md:flex-row md:items-center gap-6">
+                        <div className="mx-auto h-64 w-full md:h-52 md:w-52 shrink-0">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={chartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={70}
+                                        outerRadius={100}
+                                        dataKey="value"
+                                        strokeWidth={0}
+                                        labelLine={false}
+                                    >
+                                        {chartData.map((entry) => (
+                                            <Cell key={entry.name} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        formatter={(v: any, n: any) => [`${v} tasks`, n]}
+                                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
                                     />
-                                ))}
-                            </AnimatePresence>
-                        </ul>
-                    )}
-                </div>
+                                    {/* Center total */}
+                                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                                        <tspan fontSize={32} fontWeight={700} fill="currentColor">{summary.total}</tspan>
+                                        <tspan x="50%" dy={24} fontSize={12} fill="#888">tasks</tspan>
+                                    </text>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
 
+                        {/* Legend */}
+                        <div className="flex flex-row md:flex-col flex-wrap justify-center gap-4 md:gap-3">
+                            {chartData.map((d) => (
+                                <div key={d.name} className="flex items-center gap-2 min-w-[100px] md:min-w-0">
+                                    <span className="h-3 w-3 rounded-full shrink-0" style={{ background: d.color }} />
+                                    <span className="text-sm font-medium">{d.name}</span>
+                                    <span className="text-sm font-bold text-muted-foreground ml-auto">{d.value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {/* Row 3: Recent Tasks Option */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Recent Tasks</h2>
+                    <span className="text-xs text-muted-foreground">Latest 5 tasks</span>
+                </div>
+                {isLoading && (
+                    <p className="text-sm text-muted-foreground">Loading tasks…</p>
+                )}
+                {!isLoading && summary.total === 0 && (
+                    <p className="text-sm text-muted-foreground italic">No tasks created yet 🎉</p>
+                )}
+
+                {recentTasks.length > 0 && (
+                    <ul className="space-y-3">
+                        <AnimatePresence mode="popLayout">
+                            {recentTasks.map((t) => (
+                                <TaskCard
+                                    key={t.id}
+                                    task={t}
+                                    completing={completing === t.id}
+                                    onComplete={() => handleComplete(t.id, t.deadline)}
+                                />
+                            ))}
+                        </AnimatePresence>
+                    </ul>
+                )}
             </div>
         </div>
     )

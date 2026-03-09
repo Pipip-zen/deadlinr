@@ -10,7 +10,8 @@ import * as z from 'zod'
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, type ColumnDef, type SortingState, type ColumnFiltersState } from '@tanstack/react-table'
 import { useQuery } from '@tanstack/react-query'
 
-import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMarkDone } from '@/hooks/useTasks'
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
+import { useMarkTaskDone } from '@/hooks/useMarkTaskDone'
 import type { TaskWithStatus } from '@/hooks/useTasks'
 import { useAuthStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase'
@@ -111,7 +112,7 @@ function TasksContent() {
     const createTask = useCreateTask()
     const updateTask = useUpdateTask()
     const deleteTask = useDeleteTask()
-    const markDone = useMarkDone()
+    const markDone = useMarkTaskDone()
 
     const { data: courses, isLoading: isLoadingCourses } = useQuery({
         queryKey: ['courses'],
