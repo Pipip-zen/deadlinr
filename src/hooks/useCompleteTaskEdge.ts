@@ -12,7 +12,8 @@ interface CompleteTaskResult {
 
 /**
  * Calls the `complete-task` Supabase Edge Function.
- * On success: shows a Sonner toast and invalidates relevant query caches.
+ * Uses native fetch over supabase.functions.invoke so real error messages
+ * from the function body are surfaced instead of generic "non-2xx" errors.
  */
 export function useCompleteTaskEdge() {
     const qc = useQueryClient()
@@ -24,32 +25,49 @@ export function useCompleteTaskEdge() {
             const userId = profile?.id
             if (!userId) throw new Error('Not authenticated')
 
-            const { data, error } = await supabase.functions.invoke<CompleteTaskResult>(
-                'complete-task',
-                { body: { taskId, userId } }
-            )
+            // Get auth token
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session) throw new Error('No active session')
 
-            if (error) throw new Error(error.message)
-            if (!data) throw new Error('Empty response from edge function')
-            return data
+            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/complete-task`
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                },
+                body: JSON.stringify({ taskId, userId }),
+            })
+
+            const text = await res.text()
+            let data: CompleteTaskResult & { error?: string }
+            try {
+                data = JSON.parse(text)
+            } catch {
+                throw new Error(`Edge function error: ${text}`)
+            }
+
+            if (!res.ok) {
+                throw new Error(data.error ?? `HTTP ${res.status}`)
+            }
+
+            return data as CompleteTaskResult
         },
 
         onSuccess: (result) => {
             const { pointsEarned, streakCount, streakBonus } = result
 
-            // Optimistically update streak in auth store so the UI reflects it immediately
             if (profile) {
                 setProfile({ ...profile, streakCount })
             }
 
-            // Show toast
             const bonusText = streakBonus > 0 ? ` (+${streakBonus} streak bonus)` : ''
             toast.success(
                 `✅ +${pointsEarned} pts${bonusText}! 🔥 ${streakCount}-day streak`,
                 { duration: 4000 }
             )
 
-            // Invalidate caches
             const classId = profile?.classId
             const userId = profile?.id
             qc.invalidateQueries({ queryKey: ['dashboard-tasks', classId] })
@@ -60,7 +78,7 @@ export function useCompleteTaskEdge() {
         },
 
         onError: (error: Error) => {
-            toast.error(`Failed to complete task: ${error.message}`)
+            toast.error(`Gagal mengerjakan tugas: ${error.message}`)
         },
     })
 }
