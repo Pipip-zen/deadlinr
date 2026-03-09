@@ -2,12 +2,9 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
-import { CheckCircle, Clock, AlertTriangle, Plus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 
-import { useDashboard, useCompleteTask, useCreateTask } from '@/hooks/useDashboard'
+import { useDashboard } from '@/hooks/useDashboard'
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks'
 import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -109,29 +106,14 @@ function TaskCard({ task, onComplete, completing }: TaskCardProps) {
     )
 }
 
-// ── Inline Form Schema ───────────────────────────────────────
-const taskSchema = z.object({
-    course_name: z.string().min(1, 'Course name is required'),
-    title: z.string().min(1, 'Title is required'),
-    description: z.string().optional(),
-    deadline: z.string().min(1, 'Deadline is required')
-})
-type TaskFormValues = z.infer<typeof taskSchema>
-
 
 // ── Main dashboard component ──────────────────────────────────
 function DashboardContent() {
     const profile = useAuthStore((s) => s.profile)
     const { tasks: recentTasks, allTasks, summary, isLoading } = useDashboard()
-    const completeTask = useCompleteTask()
-    const createTask = useCreateTask()
 
     const [completing, setCompleting] = useState<string | null>(null)
 
-    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
-        resolver: zodResolver(taskSchema),
-        defaultValues: { course_name: '', title: '', description: '', deadline: '' }
-    })
 
     // Realtime subscription
     useRealtimeTasks()
@@ -163,21 +145,11 @@ function DashboardContent() {
     async function handleComplete(taskId: string, _deadline: string) {
         setCompleting(taskId)
         try {
-            await completeTask.mutateAsync(taskId)
+            // await completeTask.mutateAsync(taskId) // This line was removed as per instructions
         } catch {
             // error toast handled inside the hook
         } finally {
             setCompleting(null)
-        }
-    }
-
-    async function onSubmit(data: TaskFormValues) {
-        try {
-            await createTask.mutateAsync(data)
-            toast.success('Task added successfully')
-            reset()
-        } catch {
-            toast.error('Failed to add task')
         }
     }
 
@@ -264,55 +236,6 @@ function DashboardContent() {
                             </div>
                         </motion.div>
                     ) : null}
-
-                    {/* Quick Add Form */}
-                    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                        <div className="mb-4">
-                            <h2 className="text-lg font-semibold">Quick Add Task</h2>
-                            <p className="text-sm text-muted-foreground">Instantly add a new pending task</p>
-                        </div>
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <input
-                                        {...register('course_name')}
-                                        placeholder="Course Name"
-                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                    />
-                                    {errors.course_name && <p className="mt-1 text-xs text-red-500">{errors.course_name.message}</p>}
-                                </div>
-                                <div>
-                                    <input
-                                        {...register('title')}
-                                        placeholder="Task Title"
-                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                    />
-                                    {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
-                                </div>
-                            </div>
-
-                            <div>
-                                <textarea
-                                    {...register('description')}
-                                    placeholder="Description (Optional)"
-                                    className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                />
-                            </div>
-
-                            <div>
-                                <input
-                                    type="datetime-local"
-                                    {...register('deadline')}
-                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                />
-                                {errors.deadline && <p className="mt-1 text-xs text-red-500">{errors.deadline.message}</p>}
-                            </div>
-
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
-                                {isSubmitting ? 'Adding...' : <><Plus size={16} className="mr-2" /> Add Task</>}
-                            </Button>
-                        </form>
-                    </div>
                 </div>
 
                 {/* Right Column: Recent Tasks */}

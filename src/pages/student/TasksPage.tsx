@@ -7,19 +7,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 
-import {
-    useReactTable,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getSortedRowModel,
-    type ColumnDef,
-    type SortingState,
-    type ColumnFiltersState,
-} from '@tanstack/react-table'
+import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, type ColumnDef, type SortingState, type ColumnFiltersState } from '@tanstack/react-table'
+import { useQuery } from '@tanstack/react-query'
 
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMarkDone } from '@/hooks/useTasks'
 import type { TaskWithStatus } from '@/hooks/useTasks'
 import { useAuthStore } from '@/lib/store'
+import { supabase } from '@/lib/supabase'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 import { Button } from '@/components/ui/button'
@@ -118,6 +112,15 @@ function TasksContent() {
     const updateTask = useUpdateTask()
     const deleteTask = useDeleteTask()
     const markDone = useMarkDone()
+
+    const { data: courses, isLoading: isLoadingCourses } = useQuery({
+        queryKey: ['courses'],
+        queryFn: async () => {
+            const { data, error } = await supabase.from('courses').select('id, name').order('name')
+            if (error) throw error
+            return data
+        }
+    })
 
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -356,7 +359,19 @@ function TasksContent() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="mb-1 block text-xs font-medium text-muted-foreground">Course Name</label>
-                            <Input {...register('course_name')} placeholder="e.g. CS 101" />
+                            <select
+                                {...register('course_name')}
+                                className="w-full rounded-md border border-input bg-transparent px-3 py-[9px] text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                <option value="" disabled>Select a course</option>
+                                {isLoadingCourses ? (
+                                    <option disabled>Loading courses...</option>
+                                ) : (
+                                    courses?.map(c => (
+                                        <option key={c.id} value={c.name}>{c.name}</option>
+                                    ))
+                                )}
+                            </select>
                             {errors.course_name && <p className="mt-1 text-xs text-red-500">{errors.course_name.message}</p>}
                         </div>
                         <div>
