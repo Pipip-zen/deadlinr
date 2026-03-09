@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { toast } from 'sonner'
-import { CheckCircle, Clock, AlertTriangle, ListTodo } from 'lucide-react'
+import { CheckCircle, Clock, AlertTriangle, Plus } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
-import { useDashboard, useCompleteTask } from '@/hooks/useDashboard'
+import { useDashboard, useCompleteTask, useCreateTask } from '@/hooks/useDashboard'
 import { useRealtimeTasks } from '@/hooks/useRealtimeTasks'
 import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -106,47 +109,29 @@ function TaskCard({ task, onComplete, completing }: TaskCardProps) {
     )
 }
 
-// ── Task group ────────────────────────────────────────────────
-function TaskGroup({
-    title,
-    tasks,
-    onComplete,
-    completing,
-}: {
-    title: string
-    tasks: TaskWithStatus[]
-    onComplete: (id: string, deadline: string) => void
-    completing: string | null
-}) {
-    if (!tasks.length) return null
-    return (
-        <section>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                {title} ({tasks.length})
-            </h3>
-            <ul className="space-y-2">
-                <AnimatePresence mode="popLayout">
-                    {tasks.map((t) => (
-                        <TaskCard
-                            key={t.id}
-                            task={t}
-                            completing={completing === t.id}
-                            onComplete={() => onComplete(t.id, t.deadline)}
-                        />
-                    ))}
-                </AnimatePresence>
-            </ul>
-        </section>
-    )
-}
+// ── Inline Form Schema ───────────────────────────────────────
+const taskSchema = z.object({
+    course_name: z.string().min(1, 'Course name is required'),
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+    deadline: z.string().min(1, 'Deadline is required')
+})
+type TaskFormValues = z.infer<typeof taskSchema>
 
 
 // ── Main dashboard component ──────────────────────────────────
 function DashboardContent() {
     const profile = useAuthStore((s) => s.profile)
-    const { tasks, summary, isLoading } = useDashboard()
+    const { tasks: recentTasks, allTasks, summary, isLoading } = useDashboard()
     const completeTask = useCompleteTask()
+    const createTask = useCreateTask()
+
     const [completing, setCompleting] = useState<string | null>(null)
+
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
+        resolver: zodResolver(taskSchema),
+        defaultValues: { course_name: '', title: '', description: '', deadline: '' }
+    })
 
     // Realtime subscription
     useRealtimeTasks()
@@ -154,8 +139,8 @@ function DashboardContent() {
     // Deadline toasts — run once on mount when data is ready
     const [toasted, setToasted] = useState(false)
     useEffect(() => {
-        if (toasted || tasks.length === 0) return
-        const soon = tasks.filter(
+        if (toasted || allTasks.length === 0) return
+        const soon = allTasks.filter(
             (t) => t.status === 'pending' || t.status === 'overdue'
         )
         if (soon.length === 0) return
@@ -173,7 +158,7 @@ function DashboardContent() {
             }, i * 600)
         })
         setToasted(true)
-    }, [tasks, toasted])
+    }, [allTasks, toasted])
 
     async function handleComplete(taskId: string, _deadline: string) {
         setCompleting(taskId)
@@ -186,99 +171,179 @@ function DashboardContent() {
         }
     }
 
-    // Grouped tasks (exclude completed from list)
-    const overdue = tasks.filter((t) => t.status === 'overdue')
-    const pending = tasks.filter((t) => t.status === 'pending')
+    async function onSubmit(data: TaskFormValues) {
+        try {
+            await createTask.mutateAsync(data)
+            toast.success('Task added successfully')
+            reset()
+        } catch {
+            toast.error('Failed to add task')
+        }
+    }
 
     // Donut data
     const chartData = [
         { name: 'Completed', value: summary.completed, color: STATUS.done.color },
         { name: 'Overdue', value: summary.overdue, color: STATUS.overdue.color },
-        { name: 'Pending', value: summary.inProgress, color: STATUS.pending.color },
+        { name: 'Pending', value: summary.pending, color: STATUS.pending.color },
     ].filter((d) => d.value > 0)
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-12">
             {/* Header */}
             <div>
                 <h1 className="text-2xl font-bold">
                     Hello, {profile?.name?.split(' ')[0] ?? 'there'} 👋
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                    Here's your class overview
+                    Here's your personal task overview
                 </p>
             </div>
 
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <SummaryCard label="Total Tasks" value={summary.total} icon={ListTodo} colorClass="bg-indigo-500/10 text-indigo-500" delay={0} />
-                <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-green-500/10  text-green-500" delay={0.07} />
-                <SummaryCard label="Pending" value={summary.inProgress} icon={Clock} colorClass="bg-amber-500/10  text-amber-500" delay={0.14} />
-                <SummaryCard label="Overdue" value={summary.overdue} icon={AlertTriangle} colorClass="bg-red-500/10    text-red-500" delay={0.21} />
+            {/* Summary cards (Pending, Completed, Overdue) */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <SummaryCard label="Pending" value={summary.pending} icon={Clock} colorClass="bg-amber-500/10 text-amber-500" delay={0} />
+                <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-green-500/10 text-green-500" delay={0.07} />
+                <SummaryCard label="Overdue" value={summary.overdue} icon={AlertTriangle} colorClass="bg-red-500/10 text-red-500" delay={0.14} />
             </div>
 
-            {/* Donut + legend */}
-            {!isLoading && summary.total > 0 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6 sm:flex-row sm:items-center"
-                >
-                    <div className="mx-auto h-52 w-52 shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={chartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={90}
-                                    dataKey="value"
-                                    strokeWidth={0}
-                                    labelLine={false}
-                                >
-                                    {chartData.map((entry) => (
-                                        <Cell key={entry.name} fill={entry.color} />
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+
+                {/* Left Column: Donut Chart & Quick Add Form */}
+                <div className="space-y-8">
+                    {/* Donut Chart */}
+                    {!isLoading && summary.total > 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
+                        >
+                            <h2 className="text-lg font-semibold">Task Breakdown</h2>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                                <div className="mx-auto h-52 w-52 shrink-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={chartData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={90}
+                                                dataKey="value"
+                                                strokeWidth={0}
+                                                labelLine={false}
+                                            >
+                                                {chartData.map((entry) => (
+                                                    <Cell key={entry.name} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip
+                                                formatter={(v, n) => [`${v} tasks`, n]}
+                                                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
+                                            />
+                                            {/* Center total */}
+                                            <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                                                <tspan fontSize={28} fontWeight={700} fill="currentColor">{summary.total}</tspan>
+                                                <tspan x="50%" dy={22} fontSize={11} fill="#888">tasks</tspan>
+                                            </text>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+
+                                {/* Legend */}
+                                <div className="flex flex-col gap-3">
+                                    {chartData.map((d) => (
+                                        <div key={d.name} className="flex items-center gap-2">
+                                            <span className="h-3 w-3 rounded-full shrink-0" style={{ background: d.color }} />
+                                            <span className="text-sm font-medium">{d.name}</span>
+                                            <span className="text-sm text-muted-foreground ml-auto">{d.value}</span>
+                                        </div>
                                     ))}
-                                </Pie>
-                                <Tooltip
-                                    formatter={(v, n) => [`${v} tasks`, n]}
-                                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
-                                />
-                                {/* Center total */}
-                                <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                                    <tspan fontSize={28} fontWeight={700} fill="currentColor">{summary.total}</tspan>
-                                    <tspan x="50%" dy={22} fontSize={11} fill="#888">tasks</tspan>
-                                </text>
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    {/* Legend */}
-                    <div className="flex flex-wrap gap-4">
-                        {chartData.map((d) => (
-                            <div key={d.name} className="flex items-center gap-2">
-                                <span className="h-3 w-3 rounded-full" style={{ background: d.color }} />
-                                <span className="text-sm text-muted-foreground">{d.name}</span>
-                                <span className="text-sm font-semibold">{d.value}</span>
+                                </div>
                             </div>
-                        ))}
-                    </div>
-                </motion.div>
-            )}
+                        </motion.div>
+                    ) : null}
 
-            {/* Task list */}
-            <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Tasks</h2>
-                {isLoading && (
-                    <p className="text-sm text-muted-foreground">Loading tasks…</p>
-                )}
-                {!isLoading && summary.total === 0 && (
-                    <p className="text-sm text-muted-foreground">No tasks yet for your class 🎉</p>
-                )}
-                <TaskGroup title="Overdue" tasks={overdue} onComplete={handleComplete} completing={completing} />
-                <TaskGroup title="Pending" tasks={pending} onComplete={handleComplete} completing={completing} />
+                    {/* Quick Add Form */}
+                    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                        <div className="mb-4">
+                            <h2 className="text-lg font-semibold">Quick Add Task</h2>
+                            <p className="text-sm text-muted-foreground">Instantly add a new pending task</p>
+                        </div>
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <input
+                                        {...register('course_name')}
+                                        placeholder="Course Name"
+                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    />
+                                    {errors.course_name && <p className="mt-1 text-xs text-red-500">{errors.course_name.message}</p>}
+                                </div>
+                                <div>
+                                    <input
+                                        {...register('title')}
+                                        placeholder="Task Title"
+                                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    />
+                                    {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
+                                </div>
+                            </div>
+
+                            <div>
+                                <textarea
+                                    {...register('description')}
+                                    placeholder="Description (Optional)"
+                                    className="min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                            </div>
+
+                            <div>
+                                <input
+                                    type="datetime-local"
+                                    {...register('deadline')}
+                                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                                {errors.deadline && <p className="mt-1 text-xs text-red-500">{errors.deadline.message}</p>}
+                            </div>
+
+                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                                {isSubmitting ? 'Adding...' : <><Plus size={16} className="mr-2" /> Add Task</>}
+                            </Button>
+                        </form>
+                    </div>
+                </div>
+
+                {/* Right Column: Recent Tasks */}
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold">Recent Tasks</h2>
+                        <span className="text-xs text-muted-foreground">Latest 5 tasks</span>
+                    </div>
+                    {isLoading && (
+                        <p className="text-sm text-muted-foreground">Loading tasks…</p>
+                    )}
+                    {!isLoading && summary.total === 0 && (
+                        <p className="text-sm text-muted-foreground italic">No tasks created yet 🎉</p>
+                    )}
+
+                    {recentTasks.length > 0 && (
+                        <ul className="space-y-3">
+                            <AnimatePresence mode="popLayout">
+                                {recentTasks.map((t) => (
+                                    <TaskCard
+                                        key={t.id}
+                                        task={t}
+                                        completing={completing === t.id}
+                                        onComplete={() => handleComplete(t.id, t.deadline)}
+                                    />
+                                ))}
+                            </AnimatePresence>
+                        </ul>
+                    )}
+                </div>
+
             </div>
         </div>
     )
