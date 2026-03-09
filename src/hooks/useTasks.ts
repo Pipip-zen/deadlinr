@@ -5,8 +5,11 @@ import type { TaskRow } from '@/types/database'
 
 export type TaskStatus = 'pending' | 'done' | 'overdue'
 
+import type { Course } from '@/hooks/useCourses'
+
 export interface TaskWithStatus extends Omit<TaskRow, 'status'> {
     status: TaskStatus
+    course?: Pick<Course, 'id' | 'name' | 'code' | 'color'> | null
 }
 
 export function useTasks() {
@@ -20,15 +23,16 @@ export function useTasks() {
             if (!userId) return []
             const { data, error } = await supabase
                 .from('tasks')
-                .select('*')
+                .select('*, course:courses(id, name, code, color)')
                 .eq('user_id', userId)
                 .order('deadline', { ascending: true })
             if (error) throw error
 
             // Enforce type alignment with TypeScript status ENUM since supabase returns string
-            return (data ?? []).map(t => ({
+            return (data ?? []).map((t: any) => ({
                 ...t,
-                status: t.status as TaskStatus
+                status: t.status as TaskStatus,
+                course: t.course
             }))
         },
         enabled: !!userId,
@@ -50,14 +54,15 @@ export function useCreateTask() {
     const userId = profile?.id ?? null
 
     return useMutation({
-        mutationFn: async (newTask: { course_name: string; title: string; description?: string; deadline: string }) => {
+        mutationFn: async (newTask: { course_id: string; title: string; description?: string; deadline: string }) => {
             if (!userId) throw new Error('Not authenticated')
             const { error } = await supabase
                 .from('tasks')
                 .insert({
                     user_id: userId,
-                    class_id: profile?.classId ?? '',
-                    course_name: newTask.course_name,
+                    class_id: '', // Legacy
+                    course_name: '', // Legacy
+                    course_id: newTask.course_id,
                     title: newTask.title,
                     description: newTask.description || null,
                     deadline: newTask.deadline,
@@ -79,7 +84,7 @@ export function useUpdateTask() {
     const userId = profile?.id ?? null
 
     return useMutation({
-        mutationFn: async ({ id, ...updates }: { id: string; course_name: string; title: string; description?: string; deadline: string }) => {
+        mutationFn: async ({ id, ...updates }: { id: string; course_id: string; title: string; description?: string; deadline: string }) => {
             if (!userId) throw new Error('Not authenticated')
             const { error } = await supabase
                 .from('tasks')

@@ -1,63 +1,63 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/lib/store'
+import { toast } from 'sonner'
+import type { Database } from '@/types/database'
 
-export interface CourseRow {
-    id: string
-    name: string
-    is_preset: boolean
-}
+export type Course = Database['public']['Tables']['courses']['Row']
+type CourseInsert = Database['public']['Tables']['courses']['Insert']
 
-// ── Fetch all courses ─────────────────────────────────────────
 export function useCourses() {
-    return useQuery({
-        queryKey: ['courses'],
-        queryFn: async (): Promise<CourseRow[]> => {
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
+
+    const query = useQuery({
+        queryKey: ['courses', userId],
+        queryFn: async () => {
+            if (!userId) return []
             const { data, error } = await supabase
                 .from('courses')
-                .select('id, name, is_preset')
-                .order('is_preset', { ascending: false }) // presets first
+                .select('*')
+                .eq('user_id', userId)
                 .order('name', { ascending: true })
+
             if (error) throw error
-            return data ?? []
+            return data as Course[]
         },
-        staleTime: 1000 * 60 * 10,
+        enabled: !!userId,
+        staleTime: 1000 * 60 * 5, // 5 mins
     })
+
+    return {
+        courses: query.data ?? [],
+        isLoading: query.isLoading,
+        error: query.error,
+    }
 }
 
-// ── Add a custom course ───────────────────────────────────────
-export function useAddCourse() {
+export function useCreateCourse() {
     const qc = useQueryClient()
-    return useMutation({
-        mutationFn: async (name: string) => {
-            const { error } = await supabase
-                .from('courses')
-                .insert({ name, is_preset: false })
-            if (error) throw error
-        },
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ['courses'] })
-            toast.success('Mata kuliah ditambahkan ✅')
-        },
-        onError: (e: Error) => toast.error(`Gagal: ${e.message}`),
-    })
-}
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
 
-// ── Delete a custom course ────────────────────────────────────
-export function useDeleteCourse() {
-    const qc = useQueryClient()
     return useMutation({
-        mutationFn: async (id: string) => {
-            const { error } = await supabase
+        mutationFn: async (course: Omit<CourseInsert, 'user_id'>) => {
+            if (!userId) throw new Error('Not authenticated')
+            const { data, error } = await supabase
                 .from('courses')
-                .delete()
-                .eq('id', id)
+                .insert({ ...course, user_id: userId })
+                .select()
+                .single()
+
             if (error) throw error
+            return data
         },
-        onSuccess: () => {
+        onSuccess: (data) => {
             qc.invalidateQueries({ queryKey: ['courses'] })
-            toast.success('Mata kuliah dihapus 🗑️')
+            toast.success(`Mata kuliah ${data.name} ditambahkan`)
         },
-        onError: (e: Error) => toast.error(`Gagal: ${e.message}`),
+        onError: (err: any) => {
+            toast.error(err.message || 'Gagal menambahkan mata kuliah')
+        }
     })
 }

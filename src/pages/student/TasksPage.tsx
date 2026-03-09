@@ -8,13 +8,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 
 import { useReactTable, getCoreRowModel, getFilteredRowModel, getSortedRowModel, type ColumnDef, type SortingState, type ColumnFiltersState } from '@tanstack/react-table'
-import { useQuery } from '@tanstack/react-query'
 
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks'
 import { useMarkTaskDone } from '@/hooks/useMarkTaskDone'
+import { useCourses } from '@/hooks/useCourses'
+import { AddCourseDialog } from '@/components/courses/AddCourseDialog'
 import type { TaskWithStatus } from '@/hooks/useTasks'
 import { useAuthStore } from '@/lib/store'
-import { supabase } from '@/lib/supabase'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 import { Button } from '@/components/ui/button'
@@ -63,7 +63,7 @@ function deadlineLabel(task: TaskWithStatus): string {
 // ── Inline Form Schema ───────────────────────────────────────
 const taskSchema = z.object({
     id: z.string().optional(),
-    course_name: z.string().min(1, 'Course name is required'),
+    course_id: z.string().min(1, 'Course is required'),
     title: z.string().min(1, 'Title is required'),
     description: z.string().optional(),
     deadline: z.string().min(1, 'Deadline is required')
@@ -114,14 +114,8 @@ function TasksContent() {
     const deleteTask = useDeleteTask()
     const markDone = useMarkTaskDone()
 
-    const { data: courses, isLoading: isLoadingCourses } = useQuery({
-        queryKey: ['courses'],
-        queryFn: async () => {
-            const { data, error } = await supabase.from('courses').select('id, name').order('name')
-            if (error) throw error
-            return data
-        }
-    })
+    const { courses, isLoading: isLoadingCourses } = useCourses()
+    const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false)
 
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
@@ -133,12 +127,12 @@ function TasksContent() {
 
     const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
         resolver: zodResolver(taskSchema),
-        defaultValues: { course_name: '', title: '', description: '', deadline: '' }
+        defaultValues: { course_id: '', title: '', description: '', deadline: '' }
     })
 
     const openCreateDialog = () => {
         setEditingTask(null)
-        reset({ course_name: '', title: '', description: '', deadline: '' })
+        reset({ course_id: '', title: '', description: '', deadline: '' })
         setDialogOpen(true)
     }
 
@@ -147,7 +141,7 @@ function TasksContent() {
         // Convert timestamp to datetime-local friendly format if needed
         const dt = new Date(task.deadline).toISOString().slice(0, 16)
         setValue('id', task.id)
-        setValue('course_name', task.course_name)
+        setValue('course_id', task.course_id ?? '')
         setValue('title', task.title)
         setValue('description', task.description || '')
         setValue('deadline', dt)
@@ -159,7 +153,7 @@ function TasksContent() {
             if (editingTask && data.id) {
                 await updateTask.mutateAsync({
                     id: data.id,
-                    course_name: data.course_name,
+                    course_id: data.course_id,
                     title: data.title,
                     description: data.description,
                     deadline: new Date(data.deadline).toISOString()
@@ -167,7 +161,7 @@ function TasksContent() {
                 toast.success('Task updated successfully')
             } else {
                 await createTask.mutateAsync({
-                    course_name: data.course_name,
+                    course_id: data.course_id,
                     title: data.title,
                     description: data.description,
                     deadline: new Date(data.deadline).toISOString()
@@ -183,8 +177,9 @@ function TasksContent() {
     // TanStack Table setup
     const columns = useMemo<ColumnDef<TaskWithStatus>[]>(() => [
         {
-            accessorKey: 'course_name',
+            accessorKey: 'course',
             header: 'Course',
+            accessorFn: (row) => row.course?.code ?? 'N/A',
             filterFn: 'includesString'
         },
         {
@@ -313,10 +308,13 @@ function TasksContent() {
                                     </div>
 
                                     <div className="my-4 flex-1">
-                                        <h4 className={`text-sm font-semibold text-muted-foreground uppercase tracking-wide`}>
-                                            {task.course_name}
-                                        </h4>
-                                        <p className={`mt-1 font-semibold text-lg leading-tight ${isDone ? 'text-muted-foreground line-through' : ''}`}>
+                                        {task.course && (
+                                            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-border/40 px-2 py-0.5 text-xs font-semibold shadow-sm" style={{ backgroundColor: `${task.course.color}15`, color: task.course.color }}>
+                                                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: task.course.color }} />
+                                                <span title={task.course.name}>{task.course.code}</span>
+                                            </div>
+                                        )}
+                                        <p className={`font-semibold text-lg leading-tight ${isDone ? 'text-muted-foreground line-through' : ''}`}>
                                             {task.title}
                                         </p>
                                         {task.description && (
@@ -358,22 +356,29 @@ function TasksContent() {
             >
                 <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="mb-1 block text-xs font-medium text-muted-foreground">Course Name</label>
-                            <select
-                                {...register('course_name')}
-                                className="w-full rounded-md border border-input bg-transparent px-3 py-[9px] text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                <option value="" disabled>Select a course</option>
-                                {isLoadingCourses ? (
-                                    <option disabled>Loading courses...</option>
-                                ) : (
-                                    courses?.map(c => (
-                                        <option key={c.id} value={c.name}>{c.name}</option>
-                                    ))
-                                )}
-                            </select>
-                            {errors.course_name && <p className="mt-1 text-xs text-red-500">{errors.course_name.message}</p>}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-medium text-muted-foreground">Course Name</label>
+                            {courses.length === 0 && !isLoadingCourses ? (
+                                <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-center">
+                                    <p className="text-xs text-muted-foreground mb-2">You need a course to add tasks to.</p>
+                                    <Button type="button" size="sm" variant="outline" onClick={() => setIsCourseDialogOpen(true)} className="h-7 text-xs">Add a Course First</Button>
+                                </div>
+                            ) : (
+                                <select
+                                    {...register('course_id')}
+                                    className="w-full rounded-md border border-input bg-transparent px-3 py-[9px] text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                >
+                                    <option value="" disabled>Select a course</option>
+                                    {isLoadingCourses ? (
+                                        <option disabled>Loading courses...</option>
+                                    ) : (
+                                        courses?.map((c: any) => (
+                                            <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                                        ))
+                                    )}
+                                </select>
+                            )}
+                            {errors.course_id && <p className="mt-1 text-xs text-red-500">{errors.course_id.message}</p>}
                         </div>
                         <div>
                             <label className="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
@@ -432,6 +437,8 @@ function TasksContent() {
                     </Button>
                 </div>
             </Dialog>
+
+            <AddCourseDialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen} />
         </div>
     )
 }

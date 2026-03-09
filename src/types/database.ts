@@ -32,26 +32,37 @@ export type Database = {
             courses: {
                 Row: {
                     id: string
+                    user_id: string
                     name: string
-                    class_id: string | null
-                    is_preset: boolean
+                    code: string
+                    color: string
                     created_at: string
                 }
                 Insert: {
                     id?: string
+                    user_id: string
                     name: string
-                    class_id?: string | null
-                    is_preset?: boolean
+                    code: string
+                    color: string
                     created_at?: string
                 }
                 Update: {
                     id?: string
+                    user_id?: string
                     name?: string
-                    class_id?: string | null
-                    is_preset?: boolean
+                    code?: string
+                    color?: string
                     created_at?: string
                 }
-                Relationships: []
+                Relationships: [
+                    {
+                        foreignKeyName: 'courses_user_id_fkey'
+                        columns: ['user_id']
+                        isOneToOne: false
+                        referencedRelation: 'profiles'
+                        referencedColumns: ['id']
+                    }
+                ]
             }
             profiles: {
                 Row: {
@@ -89,6 +100,7 @@ export type Database = {
                 Row: {
                     id: string
                     class_id: string
+                    course_id: string | null
                     course_name: string
                     title: string
                     description: string | null
@@ -101,6 +113,7 @@ export type Database = {
                 Insert: {
                     id?: string
                     class_id: string
+                    course_id?: string | null
                     course_name: string
                     title: string
                     description?: string | null
@@ -113,6 +126,7 @@ export type Database = {
                 Update: {
                     id?: string
                     class_id?: string
+                    course_id?: string | null
                     course_name?: string
                     title?: string
                     description?: string | null
@@ -135,6 +149,13 @@ export type Database = {
                         columns: ['user_id']
                         isOneToOne: false
                         referencedRelation: 'profiles'
+                        referencedColumns: ['id']
+                    },
+                    {
+                        foreignKeyName: 'tasks_course_id_fkey'
+                        columns: ['course_id']
+                        isOneToOne: false
+                        referencedRelation: 'courses'
                         referencedColumns: ['id']
                     }
                 ]
