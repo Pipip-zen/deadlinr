@@ -12,8 +12,8 @@ interface CompleteTaskResult {
 
 /**
  * Calls the `complete-task` Supabase Edge Function.
- * Uses native fetch over supabase.functions.invoke so real error messages
- * from the function body are surfaced instead of generic "non-2xx" errors.
+ * Uses supabase.functions.invoke (auto-attaches session token),
+ * and parses the real error body from FunctionsHttpError context.
  */
 export function useCompleteTaskEdge() {
     const qc = useQueryClient()
@@ -25,34 +25,28 @@ export function useCompleteTaskEdge() {
             const userId = profile?.id
             if (!userId) throw new Error('Not authenticated')
 
-            // Get auth token
-            const { data: { session } } = await supabase.auth.getSession()
-            if (!session) throw new Error('No active session')
+            const { data, error } = await supabase.functions.invoke<CompleteTaskResult>(
+                'complete-task',
+                { body: { taskId, userId } }
+            )
 
-            const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/complete-task`
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`,
-                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-                },
-                body: JSON.stringify({ taskId, userId }),
-            })
-
-            const text = await res.text()
-            let data: CompleteTaskResult & { error?: string }
-            try {
-                data = JSON.parse(text)
-            } catch {
-                throw new Error(`Edge function error: ${text}`)
+            if (error) {
+                // Parse real error message from function response body
+                let message = error.message
+                try {
+                    // FunctionsHttpError has a .context Response object
+                    const ctx = (error as unknown as { context?: Response }).context
+                    if (ctx instanceof Response) {
+                        const body = await ctx.json()
+                        message = body.error ?? body.message ?? message
+                    }
+                } catch { /* keep original message */ }
+                throw new Error(message)
             }
 
-            if (!res.ok) {
-                throw new Error(data.error ?? `HTTP ${res.status}`)
-            }
+            if (!data) throw new Error('Empty response from edge function')
+            return data
 
-            return data as CompleteTaskResult
         },
 
         onSuccess: (result) => {
