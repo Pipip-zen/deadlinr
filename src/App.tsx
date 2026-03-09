@@ -21,6 +21,7 @@ import TasksPage from '@/pages/student/TasksPage'
 import LeaderboardPage from '@/pages/student/LeaderboardPage'
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
 import CreateTaskPage from '@/pages/admin/CreateTaskPage'
+import CoursesPage from '@/pages/admin/CoursesPage'
 import SuperadminDashboardPage from '@/pages/superadmin/SuperadminDashboardPage'
 
 function AppRoutes() {
@@ -66,6 +67,7 @@ function AppRoutes() {
                     <Route element={<AdminLayout />}>
                         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                         <Route path="/admin/create-task" element={<CreateTaskPage />} />
+                        <Route path="/admin/courses" element={<CoursesPage />} />
                     </Route>
                 </Route>
             </Route>

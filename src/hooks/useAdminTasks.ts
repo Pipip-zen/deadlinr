@@ -14,34 +14,39 @@ export interface TaskFormValues {
     course_name: string
     title: string
     description: string
-    deadline: string // ISO datetime string from <input type="datetime-local">
+    deadline: string
 }
 
-// ── Fetch tasks + completion counts ───────────────────────────
-export function useAdminTasks() {
+export const PAGE_SIZE = 10
+
+// ── Fetch tasks + completion counts (paginated) ───────────────
+export function useAdminTasks(page = 0) {
     const profile = useAuthStore((s) => s.profile)
     const classId = profile?.classId ?? null
-    const userId = profile?.id ?? null
 
     return useQuery({
-        queryKey: ['admin-tasks', classId],
-        queryFn: async (): Promise<TaskWithCompletions[]> => {
-            // Fetch tasks for this class
-            const { data: tasks, error: taskErr } = await supabase
+        queryKey: ['admin-tasks', classId, page],
+        queryFn: async (): Promise<{ tasks: TaskWithCompletions[]; total: number }> => {
+            const from = page * PAGE_SIZE
+            const to = from + PAGE_SIZE - 1
+
+            const { data: tasks, error: taskErr, count } = await supabase
                 .from('tasks')
-                .select('*')
+                .select('*', { count: 'exact' })
                 .eq('class_id', classId!)
                 .order('deadline', { ascending: true })
+                .range(from, to)
+
             if (taskErr) throw taskErr
 
-            // Fetch completion counts per task in one query
             const taskIds = (tasks ?? []).map((t) => t.id)
-            if (taskIds.length === 0) return []
+            if (taskIds.length === 0) return { tasks: [], total: count ?? 0 }
 
             const { data: counts, error: countErr } = await supabase
                 .from('task_completions')
                 .select('task_id')
                 .in('task_id', taskIds)
+
             if (countErr) throw countErr
 
             const countMap = (counts ?? []).reduce<Record<string, number>>((acc, row) => {
@@ -49,16 +54,17 @@ export function useAdminTasks() {
                 return acc
             }, {})
 
-            return (tasks ?? []).map((t) => ({
-                ...t,
-                completions_count: countMap[t.id] ?? 0,
-            }))
+            return {
+                tasks: (tasks ?? []).map((t) => ({
+                    ...t,
+                    completions_count: countMap[t.id] ?? 0,
+                })),
+                total: count ?? 0,
+            }
         },
         enabled: !!classId,
-        staleTime: 1000 * 60,
+        staleTime: 1000 * 30,
     })
-
-    void userId // used in mutations below
 }
 
 // ── Create task ────────────────────────────────────────────────
@@ -127,7 +133,7 @@ export function useDeleteTask() {
     })
 }
 
-// ── Realtime: task_completions INSERT → refresh counts ─────────
+// ── Realtime: tasks INSERT/UPDATE/DELETE + completions INSERT ──
 export function useRealtimeCompletions() {
     const qc = useQueryClient()
     const profile = useAuthStore((s) => s.profile)
@@ -135,16 +141,23 @@ export function useRealtimeCompletions() {
 
     useEffect(() => {
         if (!classId) return
+
         const channel = supabase
-            .channel(`completions:admin:${classId}`)
+            .channel(`admin-realtime:${classId}`)
+            // Task changes (insert / update / delete)
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'tasks', filter: `class_id=eq.${classId}` },
+                () => { qc.invalidateQueries({ queryKey: ['admin-tasks', classId] }) }
+            )
+            // Completion changes
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'task_completions' },
-                () => {
-                    qc.invalidateQueries({ queryKey: ['admin-tasks', classId] })
-                }
+                () => { qc.invalidateQueries({ queryKey: ['admin-tasks', classId] }) }
             )
             .subscribe()
+
         return () => { supabase.removeChannel(channel) }
     }, [classId, qc])
 }

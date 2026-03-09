@@ -2,11 +2,12 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/lib/store'
 import { cn } from '@/utils/cn'
-import { LayoutDashboard, PlusSquare, LogOut } from 'lucide-react'
+import { LayoutDashboard, PlusSquare, BookOpen, LogOut } from 'lucide-react'
 
 const navItems = [
     { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/create-task', icon: PlusSquare, label: 'Create Task' },
+    { to: '/admin/courses', icon: BookOpen, label: 'Mata Kuliah' },
 ]
 
 export function AdminLayout() {
