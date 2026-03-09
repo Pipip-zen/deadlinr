@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
     useReactTable,
     getCoreRowModel,
@@ -16,7 +17,6 @@ import { format } from 'date-fns'
 
 import {
     useAdminTasks,
-    useCreateTask,
     useUpdateTask,
     useDeleteTask,
     useRealtimeCompletions,
@@ -144,12 +144,10 @@ function AdminDashboardContent() {
     const { data: tasks = [], isLoading } = useAdminTasks()
     useRealtimeCompletions()
 
-    const createTask = useCreateTask()
     const updateTask = useUpdateTask()
     const deleteTask = useDeleteTask()
 
     // Dialog state
-    const [createOpen, setCreateOpen] = useState(false)
     const [editTask, setEditTask] = useState<TaskWithCompletions | null>(null)
     const [deleteTarget, setDeleteTarget] = useState<TaskWithCompletions | null>(null)
     const [sorting, setSorting] = useState<SortingState>([])
@@ -245,10 +243,14 @@ function AdminDashboardContent() {
                     <h1 className="text-2xl font-bold">Task Management</h1>
                     <p className="text-sm text-muted-foreground">{tasks.length} task{tasks.length !== 1 ? 's' : ''} in your class</p>
                 </div>
-                <Button id="create-task-btn" onClick={() => setCreateOpen(true)}>
-                    <Plus size={16} className="mr-2" />
+                <Link
+                    id="create-task-btn"
+                    to="/admin/create-task"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90 h-10"
+                >
+                    <Plus size={16} />
                     New task
-                </Button>
+                </Link>
             </div>
 
             {/* Table */}
@@ -259,10 +261,13 @@ function AdminDashboardContent() {
             ) : tasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
                     <p className="text-muted-foreground text-sm">No tasks yet</p>
-                    <Button variant="outline" onClick={() => setCreateOpen(true)}>
-                        <Plus size={14} className="mr-2" />
+                    <Link
+                        to="/admin/create-task"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 text-sm font-semibold transition-all hover:bg-accent hover:text-accent-foreground h-10"
+                    >
+                        <Plus size={14} />
                         Create your first task
-                    </Button>
+                    </Link>
                 </div>
             ) : (
                 <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -313,21 +318,6 @@ function AdminDashboardContent() {
                 </div>
             )}
 
-            {/* Create dialog */}
-            <Dialog
-                open={createOpen}
-                onClose={() => setCreateOpen(false)}
-                title="Create task"
-                description="Fill in the details for the new class task."
-            >
-                <TaskForm
-                    isLoading={createTask.isPending}
-                    onSubmit={async (values) => {
-                        await createTask.mutateAsync(values)
-                        setCreateOpen(false)
-                    }}
-                />
-            </Dialog>
 
             {/* Edit dialog */}
             <Dialog

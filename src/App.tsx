@@ -20,6 +20,7 @@ import DashboardPage from '@/pages/student/DashboardPage'
 import TasksPage from '@/pages/student/TasksPage'
 import LeaderboardPage from '@/pages/student/LeaderboardPage'
 import AdminDashboardPage from '@/pages/admin/AdminDashboardPage'
+import CreateTaskPage from '@/pages/admin/CreateTaskPage'
 import SuperadminDashboardPage from '@/pages/superadmin/SuperadminDashboardPage'
 
 function AppRoutes() {
@@ -64,6 +65,7 @@ function AppRoutes() {
                 <Route element={<OnboardingGuard />}>
                     <Route element={<AdminLayout />}>
                         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                        <Route path="/admin/create-task" element={<CreateTaskPage />} />
                     </Route>
                 </Route>
             </Route>
