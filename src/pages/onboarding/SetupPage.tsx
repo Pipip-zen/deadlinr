@@ -13,7 +13,7 @@ import { useAuthStore } from '@/lib/store'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+// Removed Select import since native select is used now
 import { Avatar } from '@/components/ui/avatar'
 
 // ---- Zod schemas ----
@@ -249,14 +249,22 @@ function SetupWizard() {
                                             You'll only see tasks from your class.
                                         </p>
                                     </div>
-                                    <Select
-                                        id="setup-class"
-                                        label="Class"
-                                        placeholder="Choose a class…"
-                                        value={classId}
-                                        onChange={(e) => setClassId(e.target.value)}
-                                        options={classes.map((c) => ({ value: c.id, label: c.name }))}
-                                    />
+                                    <div className="space-y-2">
+                                        <label htmlFor="setup-class" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                            Class
+                                        </label>
+                                        <select
+                                            id="setup-class"
+                                            value={classId}
+                                            onChange={(e) => setClassId(e.target.value)}
+                                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <option value="" disabled>Choose a class...</option>
+                                            {classes.map((c) => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     {error && (
                                         <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                                             {error}

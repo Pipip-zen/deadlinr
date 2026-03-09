@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Clock, AlertTriangle, Plus, MoreVertical, Trash2, Edit2, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, Plus, MoreVertical, Trash2, Edit2, Loader2, ClipboardList, Check, ChevronsUpDown } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
@@ -20,6 +20,12 @@ import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 // ── Types & Config ─────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -114,11 +120,19 @@ function TasksContent() {
     const deleteTask = useDeleteTask()
     const markDone = useMarkTaskDone()
 
-    const { courses, isLoading: isLoadingCourses } = useCourses()
+    const { courses = [], isLoading: isLoadingCourses } = useCourses()
     const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false)
 
-    const [sorting, setSorting] = useState<SortingState>([])
+    // Selection State
+    const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
+
+    // Table Filters & Sorting States
+    const [sorting, setSorting] = useState<SortingState>([{ id: 'created_at', desc: true }])
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    // Combobox State
+    const [courseComboOpen, setCourseComboOpen] = useState(false)
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
     // Dialog state
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -138,7 +152,6 @@ function TasksContent() {
 
     const openEditDialog = (task: TaskWithStatus) => {
         setEditingTask(task)
-        // Convert timestamp to datetime-local friendly format if needed
         const dt = new Date(task.deadline).toISOString().slice(0, 16)
         setValue('id', task.id)
         setValue('course_id', task.course_id ?? '')
@@ -152,18 +165,14 @@ function TasksContent() {
         try {
             if (editingTask && data.id) {
                 await updateTask.mutateAsync({
+                    ...data,
                     id: data.id,
-                    course_id: data.course_id,
-                    title: data.title,
-                    description: data.description,
                     deadline: new Date(data.deadline).toISOString()
                 })
                 toast.success('Task updated successfully')
             } else {
                 await createTask.mutateAsync({
-                    course_id: data.course_id,
-                    title: data.title,
-                    description: data.description,
+                    ...data,
                     deadline: new Date(data.deadline).toISOString()
                 })
                 toast.success('Task added successfully')
@@ -174,13 +183,32 @@ function TasksContent() {
         }
     }
 
+    // Handlers for selection
+    const toggleSelection = (taskId: string) => {
+        setSelectedTaskIds(prev =>
+            prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+        )
+    }
+    const executeBulkDone = async () => {
+        try {
+            await markDone.mutateAsync(selectedTaskIds)
+            setSelectedTaskIds([])
+        } catch {
+            // Error handled by hook
+        }
+    }
+
     // TanStack Table setup
     const columns = useMemo<ColumnDef<TaskWithStatus>[]>(() => [
         {
-            accessorKey: 'course',
+            accessorKey: 'course_id',
             header: 'Course',
-            accessorFn: (row) => row.course?.code ?? 'N/A',
-            filterFn: 'includesString'
+            accessorFn: (row) => row.course_id ?? 'uncategorized',
+            filterFn: 'equals'
+        },
+        {
+            accessorKey: 'course', // For sorting course A-Z visually
+            accessorFn: (row) => row.course?.name ?? '',
         },
         {
             accessorKey: 'status',
@@ -208,26 +236,48 @@ function TasksContent() {
         getSortedRowModel: getSortedRowModel(),
     })
 
-    // Status Filter utility
-    const filters = [
-        { label: 'All', value: 'all' },
-        { label: 'Pending', value: 'pending' },
-        { label: 'Done', value: 'done' },
-        { label: 'Overdue', value: 'overdue' },
-    ]
+    // Filter Accessors
+    const currentCourseFilter = (table.getColumn('course_id')?.getFilterValue() as string) ?? 'all'
     const currentStatusFilter = (table.getColumn('status')?.getFilterValue() as string) ?? 'all'
-    const setStatusFilter = (val: string) => {
-        table.getColumn('status')?.setFilterValue(val === 'all' ? undefined : val)
+
+    // Determine the sorting dropdown value based on state
+    const currentSortValue = useMemo(() => {
+        if (!sorting.length) return 'newest'
+        const { id, desc } = sorting[0]
+        if (id === 'created_at' && desc) return 'newest'
+        if (id === 'created_at' && !desc) return 'oldest'
+        if (id === 'deadline' && !desc) return 'dl_nearest'
+        if (id === 'deadline' && desc) return 'dl_furthest'
+        if (id === 'course' && !desc) return 'course_az'
+        return 'newest'
+    }, [sorting])
+
+    const setSortDropdown = (val: string) => {
+        switch (val) {
+            case 'newest': setSorting([{ id: 'created_at', desc: true }]); break;
+            case 'oldest': setSorting([{ id: 'created_at', desc: false }]); break;
+            case 'dl_nearest': setSorting([{ id: 'deadline', desc: false }]); break;
+            case 'dl_furthest': setSorting([{ id: 'deadline', desc: true }]); break;
+            case 'course_az': setSorting([{ id: 'course', desc: false }]); break;
+        }
     }
 
+    const activeFilterCount = (currentCourseFilter !== 'all' ? 1 : 0) + (currentStatusFilter !== 'all' ? 1 : 0)
+
+    const clearFilters = () => {
+        setColumnFilters([])
+    }
+
+    const { rows } = table.getRowModel()
+
     return (
-        <div className="mx-auto max-w-5xl space-y-8 pb-12 pt-6">
+        <div className="mx-auto max-w-5xl space-y-8 pb-32 pt-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Your Tasks</h1>
                     <p className="mt-1 text-sm text-muted-foreground">Manage everything across all your courses.</p>
                 </div>
-                <Button onClick={openCreateDialog} className="hidden sm:flex shrink-0 group">
+                <Button onClick={openCreateDialog} className="hidden shrink-0 group sm:flex">
                     <Plus size={16} className="mr-2 transition-transform group-hover:rotate-90" />
                     Add Task
                 </Button>
@@ -236,55 +286,166 @@ function TasksContent() {
             {/* Mobile FAB */}
             <Button
                 onClick={openCreateDialog}
-                className="sm:hidden fixed bottom-20 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+                className="fixed bottom-20 right-6 z-40 h-14 w-14 rounded-full shadow-lg sm:hidden"
                 size="icon"
             >
                 <Plus size={24} />
             </Button>
 
-            {/* Filter and Sort Controls */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
-                    {filters.map(f => (
-                        <button
-                            key={f.value}
-                            onClick={() => setStatusFilter(f.value)}
-                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap ${currentStatusFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
+            {/* Filters Bar */}
+            <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+                {/* Mobile Filter Expander */}
+                <div className="sm:hidden flex items-center justify-between">
+                    <Button variant="outline" size="sm" onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}>
+                        Filters
+                        {activeFilterCount > 0 && <Badge className="ml-2 px-1.5 min-w-5">{activeFilterCount}</Badge>}
+                    </Button>
+                    <Select value={currentSortValue} onValueChange={setSortDropdown}>
+                        <SelectTrigger className="w-[140px] h-8 text-xs">
+                            <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="newest">Newest first</SelectItem>
+                            <SelectItem value="oldest">Oldest first</SelectItem>
+                            <SelectItem value="dl_nearest">Deadline nearest</SelectItem>
+                            <SelectItem value="dl_furthest">Deadline furthest</SelectItem>
+                            <SelectItem value="course_az">Course A-Z</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Input
-                        placeholder="Filter by course..."
-                        value={(table.getColumn('course_name')?.getFilterValue() as string) ?? ''}
-                        onChange={(e) => table.getColumn('course_name')?.setFilterValue(e.target.value)}
-                        className="w-full sm:w-64"
-                    />
+                <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-center w-full", mobileFiltersOpen ? "flex" : "hidden sm:flex")}>
+                    {/* Status Filter */}
+                    <div className="w-full sm:w-40">
+                        <Select
+                            value={currentStatusFilter}
+                            onValueChange={(val) => table.getColumn('status')?.setFilterValue(val === 'all' ? undefined : val)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Status: All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Statuses</SelectItem>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="done">Completed</SelectItem>
+                                <SelectItem value="overdue">Overdue</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Course Filter (Combobox if > 5) */}
+                    <div className="w-full sm:w-64">
+                        {courses.length > 5 ? (
+                            <Popover open={courseComboOpen} onOpenChange={setCourseComboOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        aria-expanded={courseComboOpen}
+                                        className="w-full justify-between bg-transparent font-normal"
+                                    >
+                                        {currentCourseFilter === 'all'
+                                            ? "All Courses"
+                                            : courses.find((course) => course.id === currentCourseFilter)?.code || "Uncategorized"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0 sm:w-64">
+                                    <Command>
+                                        <CommandInput placeholder="Search course..." />
+                                        <CommandList>
+                                            <CommandEmpty>No course found.</CommandEmpty>
+                                            <CommandGroup>
+                                                <CommandItem
+                                                    onSelect={() => {
+                                                        table.getColumn('course_id')?.setFilterValue(undefined)
+                                                        setCourseComboOpen(false)
+                                                    }}
+                                                >
+                                                    <Check className={cn("mr-2 h-4 w-4", currentCourseFilter === 'all' ? "opacity-100" : "opacity-0")} />
+                                                    All Courses
+                                                </CommandItem>
+                                                {courses.map((course) => (
+                                                    <CommandItem
+                                                        key={course.id}
+                                                        onSelect={() => {
+                                                            table.getColumn('course_id')?.setFilterValue(course.id)
+                                                            setCourseComboOpen(false)
+                                                        }}
+                                                    >
+                                                        <Check className={cn("mr-2 h-4 w-4", currentCourseFilter === course.id ? "opacity-100" : "opacity-0")} />
+                                                        {course.code}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        ) : (
+                            <Select
+                                value={currentCourseFilter}
+                                onValueChange={(val) => table.getColumn('course_id')?.setFilterValue(val === 'all' ? undefined : val)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Course: All" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Courses</SelectItem>
+                                    {courses.map(c => (
+                                        <SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        )}
+                    </div>
+
+                    {/* Desktop Sort Dropdown */}
+                    <div className="hidden sm:block ml-auto w-48">
+                        <Select value={currentSortValue} onValueChange={setSortDropdown}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Sort by" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="newest">Newest first</SelectItem>
+                                <SelectItem value="oldest">Oldest first</SelectItem>
+                                <SelectItem value="dl_nearest">Deadline nearest</SelectItem>
+                                <SelectItem value="dl_furthest">Deadline furthest</SelectItem>
+                                <SelectItem value="course_az">Course A-Z</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
             </div>
 
-            {/* TanStack Driven Card Layout */}
+            {/* Empty States & Task List */}
             {isLoading ? (
                 <div className="flex h-40 items-center justify-center">
                     <Loader2 size={24} className="animate-spin text-muted-foreground" />
                 </div>
             ) : tasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
-                    <CheckCircle2 size={48} className="mb-4 text-muted-foreground/30" />
-                    <h3 className="text-lg font-semibold">No tasks found!</h3>
-                    <p className="text-sm text-muted-foreground mt-1">You're all caught up. Start by adding a task.</p>
+                    <ClipboardList size={56} className="mb-4 text-muted-foreground/30" />
+                    <h3 className="text-lg font-semibold">No tasks yet</h3>
+                    <p className="mt-1 text-sm text-muted-foreground mb-4">You're completely caught up. Start by adding a task.</p>
+                    <Button onClick={openCreateDialog}>Add your first task</Button>
+                </div>
+            ) : rows.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
+                    <AlertTriangle size={56} className="mb-4 text-muted-foreground/30" />
+                    <h3 className="text-lg font-semibold">No tasks match your filters</h3>
+                    <p className="mt-1 text-sm text-muted-foreground mb-4">Try adjusting or removing some filters to see your tasks.</p>
+                    <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
                 </div>
             ) : (
                 <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <AnimatePresence mode="popLayout">
-                        {table.getRowModel().rows.map(row => {
+                        {rows.map(row => {
                             const task = row.original
                             const cfg = STATUS_CONFIG[task.status]
                             const Icon = cfg.icon
                             const isDone = task.status === 'done'
+                            const isSelected = selectedTaskIds.includes(task.id)
 
                             return (
                                 <motion.li
@@ -293,11 +454,18 @@ function TasksContent() {
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
                                     key={task.id}
-                                    className={`flex flex-col justify-between rounded-2xl border-l-4 border-t border-r border-b px-5 py-4 shadow-sm transition-colors duration-300 ${cfg.border} ${cfg.bg}`}
+                                    className={cn("flex flex-col justify-between rounded-2xl border-l-4 border-t border-r border-b px-5 py-4 shadow-sm transition-all duration-300", cfg.border, cfg.bg, isSelected && "ring-2 ring-primary bg-primary/5 dark:bg-primary/20")}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className={`shrink-0 ${cfg.iconCls}`}>
+                                            {!isDone && (
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={() => toggleSelection(task.id)}
+                                                    className="mr-1 h-5 w-5 data-[state=checked]:bg-primary"
+                                                />
+                                            )}
+                                            <div className={cn("shrink-0", cfg.iconCls, isDone && "ml-1")}>
                                                 <Icon size={18} />
                                             </div>
                                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cfg.badgeCls}`}>
@@ -335,6 +503,7 @@ function TasksContent() {
                                                 variant={task.status === 'overdue' ? 'destructive' : 'outline'}
                                                 className="h-8 rounded-full px-3 text-xs"
                                                 onClick={() => markDone.mutateAsync(task.id)}
+                                                loading={markDone.isPending}
                                             >
                                                 Mark as Done
                                             </Button>
@@ -346,6 +515,29 @@ function TasksContent() {
                     </AnimatePresence>
                 </ul>
             )}
+
+            {/* Bulk Actions Floating Bar */}
+            <AnimatePresence>
+                {selectedTaskIds.length > 0 && (
+                    <motion.div
+                        initial={{ y: 120, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 120, opacity: 0 }}
+                        className="fixed bottom-6 left-1/2 z-50 flex w-[90%] sm:w-auto -translate-x-1/2 items-center justify-between sm:justify-center gap-4 rounded-full bg-foreground px-6 py-4 text-background shadow-2xl"
+                    >
+                        <span className="text-sm font-semibold">{selectedTaskIds.length} task{selectedTaskIds.length > 1 ? 's' : ''} selected</span>
+                        <div className="flex items-center gap-2">
+                            <Button size="sm" variant="default" className="h-8 shadow-sm" onClick={executeBulkDone} loading={markDone.isPending}>
+                                Mark as Done
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-8 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setSelectedTaskIds([])}>
+                                Cancel
+                            </Button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
 
             {/* Add / Edit Task Dialog */}
             <Dialog
@@ -411,34 +603,36 @@ function TasksContent() {
                 </form>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={!!deleteConfirmOpen}
-                onClose={() => setDeleteConfirmOpen(null)}
-                title="Delete Task"
-            >
-                <div className="py-2 text-sm text-muted-foreground">
-                    Are you sure you want to delete <span className="font-semibold text-foreground">"{deleteConfirmOpen?.title}"</span>? This action cannot be undone.
-                </div>
-                <div className="flex justify-end pt-4">
-                    <Button type="button" variant="ghost" className="mr-2" onClick={() => setDeleteConfirmOpen(null)}>Cancel</Button>
-                    <Button type="button" variant="destructive" onClick={async () => {
-                        if (deleteConfirmOpen) {
-                            try {
-                                await deleteTask.mutateAsync(deleteConfirmOpen.id)
-                                toast.success('Task deleted')
-                            } catch {
-                                toast.error('Failed to delete task')
-                            }
-                            setDeleteConfirmOpen(null)
-                        }
-                    }}>
-                        Delete
-                    </Button>
-                </div>
-            </Dialog>
-
             <AddCourseDialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen} />
+
+            {/* Delete Confirmation Alert Dialog */}
+            {deleteConfirmOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl">
+                        <h2 className="text-lg font-bold">Delete Task?</h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Are you sure you want to delete the task <span className="font-semibold text-foreground">"{deleteConfirmOpen.title}"</span>? This action cannot be undone.
+                        </p>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(null)}>Cancel</Button>
+                            <Button
+                                variant="destructive"
+                                loading={deleteTask.isPending}
+                                onClick={async () => {
+                                    try {
+                                        await deleteTask.mutateAsync(deleteConfirmOpen.id)
+                                        setDeleteConfirmOpen(null)
+                                    } catch {
+                                        toast.error("Failed to delete task")
+                                    }
+                                }}
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

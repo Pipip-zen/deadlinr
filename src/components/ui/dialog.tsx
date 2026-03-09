@@ -1,4 +1,5 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
 
@@ -21,6 +22,9 @@ const panel = {
 }
 
 export function Dialog({ open, onClose, title, description, children }: DialogProps) {
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => setMounted(true), [])
+
     // Close on Escape
     const panelRef = useRef<HTMLDivElement>(null)
     useEffect(() => {
@@ -30,7 +34,9 @@ export function Dialog({ open, onClose, title, description, children }: DialogPr
         return () => window.removeEventListener('keydown', handler)
     }, [open, onClose])
 
-    return (
+    if (!mounted) return null
+
+    return createPortal(
         <AnimatePresence>
             {open && (
                 <motion.div
@@ -75,6 +81,7 @@ export function Dialog({ open, onClose, title, description, children }: DialogPr
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     )
 }
