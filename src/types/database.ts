@@ -29,6 +29,30 @@ export type Database = {
                 }
                 Relationships: []
             }
+            courses: {
+                Row: {
+                    id: string
+                    name: string
+                    class_id: string | null
+                    is_preset: boolean
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    name: string
+                    class_id?: string | null
+                    is_preset?: boolean
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    name?: string
+                    class_id?: string | null
+                    is_preset?: boolean
+                    created_at?: string
+                }
+                Relationships: []
+            }
             profiles: {
                 Row: {
                     id: string
