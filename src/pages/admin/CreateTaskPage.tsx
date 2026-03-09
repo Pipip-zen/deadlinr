@@ -3,11 +3,10 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { PlusSquare, Plus, X, Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { PlusSquare, Loader2 } from 'lucide-react'
 
 import { useCreateTask, type TaskFormValues } from '@/hooks/useAdminTasks'
-import { useCourses, useAddCourse, useDeleteCourse } from '@/hooks/useCourses'
+import { useCourses } from '@/hooks/useCourses'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
@@ -22,16 +21,10 @@ const taskSchema = z.object({
 function CreateTaskContent() {
     const navigate = useNavigate()
     const createTask = useCreateTask()
-
     const { data: courses = [], isLoading: coursesLoading } = useCourses()
-    const addCourse = useAddCourse()
-    const deleteCourse = useDeleteCourse()
 
     const presetCourses = courses.filter((c) => c.is_preset)
     const customCourses = courses.filter((c) => !c.is_preset)
-
-    const [addingCustom, setAddingCustom] = useState(false)
-    const [customInput, setCustomInput] = useState('')
 
     const {
         register,
@@ -46,14 +39,6 @@ function CreateTaskContent() {
     const onSubmit = async (values: TaskFormValues) => {
         await createTask.mutateAsync(values)
         navigate('/admin/dashboard')
-    }
-
-    const handleAddCustom = async () => {
-        const trimmed = customInput.trim()
-        if (!trimmed) return
-        await addCourse.mutateAsync(trimmed)
-        setCustomInput('')
-        setAddingCustom(false)
     }
 
     return (
@@ -123,64 +108,12 @@ function CreateTaskContent() {
                                 <p className="text-xs text-destructive">{errors.course_name.message}</p>
                             )}
 
-                            {/* Custom courses manager */}
-                            <div className="pt-1">
-                                {customCourses.length > 0 && (
-                                    <div className="mb-2 flex flex-wrap gap-1.5">
-                                        {customCourses.map((c) => (
-                                            <span
-                                                key={c.id}
-                                                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs font-medium"
-                                            >
-                                                {c.name}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => deleteCourse.mutate(c.id)}
-                                                    className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
-                                                >
-                                                    <X size={10} />
-                                                </button>
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {addingCustom ? (
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            autoFocus
-                                            value={customInput}
-                                            onChange={(e) => setCustomInput(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') { e.preventDefault(); handleAddCustom() }
-                                                if (e.key === 'Escape') { setAddingCustom(false); setCustomInput('') }
-                                            }}
-                                            placeholder="Nama mata kuliah baru…"
-                                            className="h-8 flex-1 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                        />
-                                        <Button type="button" size="sm" onClick={handleAddCustom} loading={addCourse.isPending}>
-                                            Add
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => { setAddingCustom(false); setCustomInput('') }}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => setAddingCustom(true)}
-                                        className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                                    >
-                                        <Plus size={12} />
-                                        Tambah mata kuliah…
-                                    </button>
-                                )}
-                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Kelola mata kuliah di{' '}
+                                <a href="/admin/dashboard" className="text-primary hover:underline">
+                                    Admin Dashboard
+                                </a>
+                            </p>
                         </div>
 
                         <Input
