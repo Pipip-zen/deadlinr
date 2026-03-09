@@ -228,11 +228,20 @@ function TasksContent() {
                     <h1 className="text-3xl font-bold tracking-tight">Your Tasks</h1>
                     <p className="mt-1 text-sm text-muted-foreground">Manage everything across all your courses.</p>
                 </div>
-                <Button onClick={openCreateDialog} className="shrink-0 group">
+                <Button onClick={openCreateDialog} className="hidden sm:flex shrink-0 group">
                     <Plus size={16} className="mr-2 transition-transform group-hover:rotate-90" />
                     Add Task
                 </Button>
             </div>
+
+            {/* Mobile FAB */}
+            <Button
+                onClick={openCreateDialog}
+                className="sm:hidden fixed bottom-20 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
+                size="icon"
+            >
+                <Plus size={24} />
+            </Button>
 
             {/* Filter and Sort Controls */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4">

@@ -170,27 +170,24 @@ function SetupWizard() {
             {/* Background blobs */}
             <div className="pointer-events-none absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
 
-            <div className="relative z-10 w-full max-w-md">
-                {/* Header */}
+            <div className="relative z-10 w-full max-w-sm sm:max-w-md px-4 sm:px-0">
                 <div className="mb-8 text-center">
-                    <h1 className="text-3xl font-bold text-foreground">Set up your profile</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Step {step + 1} of {STEPS.length}</p>
-
-                    {/* Progress dots */}
-                    <div className="mt-4 flex justify-center gap-2">
-                        {STEPS.map((_, i) => (
-                            <div
-                                key={i}
-                                className={`h-2 rounded-full transition-all ${i === step ? 'w-8 bg-primary' : i < step ? 'w-2 bg-primary/60' : 'w-2 bg-border'
-                                    }`}
-                            />
-                        ))}
-                    </div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Welcome!</h1>
+                    <p className="mt-2 text-muted-foreground">Let's set up your profile.</p>
                 </div>
 
-                {/* Card */}
-                <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-                    <AnimatePresence custom={direction} mode="wait">
+                {/* Progress Indicators */}
+                <div className="mb-8 flex justify-center gap-2">
+                    {STEPS.map((_, i) => (
+                        <div
+                            key={i}
+                            className={`h-2 w-12 rounded-full transition-colors ${i <= step ? 'bg-primary' : 'bg-primary/20'}`}
+                        />
+                    ))}
+                </div>
+
+                <div className="w-full rounded-2xl border border-border bg-card/80 p-6 sm:p-8 shadow-xl backdrop-blur relative">
+                    <AnimatePresence mode="wait" custom={direction}>
                         <motion.div
                             key={step}
                             custom={direction}

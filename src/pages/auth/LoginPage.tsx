@@ -30,18 +30,18 @@ export default function LoginPage() {
             <div className="pointer-events-none absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
             <div className="pointer-events-none absolute bottom-0 right-0 h-96 w-96 rounded-full bg-purple-500/10 blur-3xl" />
 
-            <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-8 px-6">
+            <div className="relative z-10 flex w-full max-w-lg flex-col items-center gap-8 px-4 sm:px-6">
                 {/* Brand */}
                 <div className="text-center">
                     <div className="mb-4 text-6xl">📋</div>
                     <h1 className="text-4xl font-bold tracking-tight text-foreground">Deadlinr</h1>
-                    <p className="mt-2 text-muted-foreground">
+                    <p className="mt-2 text-sm sm:text-base text-muted-foreground">
                         College task tracker with class sync &amp; gamification
                     </p>
                 </div>
 
                 {/* Card */}
-                <div className="w-full rounded-2xl border border-border bg-card/80 p-8 shadow-xl backdrop-blur">
+                <div className="w-full sm:max-w-md rounded-2xl border border-border bg-card/80 p-6 sm:p-8 shadow-xl backdrop-blur">
                     <h2 className="mb-1 text-xl font-semibold">Welcome 👋</h2>
                     <p className="mb-6 text-sm text-muted-foreground">
                         Sign in with your Google account to continue.

@@ -201,7 +201,7 @@ function DashboardContent() {
             </div>
 
             {/* Summary cards (Pending, Completed, Overdue) */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <SummaryCard label="Pending" value={summary.pending} icon={Clock} colorClass="bg-amber-500/10 text-amber-500" delay={0} />
                 <SummaryCard label="Completed" value={summary.completed} icon={CheckCircle} colorClass="bg-green-500/10 text-green-500" delay={0.07} />
                 <SummaryCard label="Overdue" value={summary.overdue} icon={AlertTriangle} colorClass="bg-red-500/10 text-red-500" delay={0.14} />
@@ -220,16 +220,16 @@ function DashboardContent() {
                             className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-6"
                         >
                             <h2 className="text-lg font-semibold">Task Breakdown</h2>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-6">
-                                <div className="mx-auto h-52 w-52 shrink-0">
+                            <div className="flex flex-col md:flex-row md:items-center gap-6">
+                                <div className="mx-auto h-64 w-full md:h-52 md:w-52 shrink-0">
                                     <ResponsiveContainer width="100%" height="100%">
                                         <PieChart>
                                             <Pie
                                                 data={chartData}
                                                 cx="50%"
                                                 cy="50%"
-                                                innerRadius={60}
-                                                outerRadius={90}
+                                                innerRadius={70}
+                                                outerRadius={100}
                                                 dataKey="value"
                                                 strokeWidth={0}
                                                 labelLine={false}
@@ -239,25 +239,25 @@ function DashboardContent() {
                                                 ))}
                                             </Pie>
                                             <Tooltip
-                                                formatter={(v, n) => [`${v} tasks`, n]}
+                                                formatter={(v: any, n: any) => [`${v} tasks`, n]}
                                                 contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
                                             />
                                             {/* Center total */}
                                             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
-                                                <tspan fontSize={28} fontWeight={700} fill="currentColor">{summary.total}</tspan>
-                                                <tspan x="50%" dy={22} fontSize={11} fill="#888">tasks</tspan>
+                                                <tspan fontSize={32} fontWeight={700} fill="currentColor">{summary.total}</tspan>
+                                                <tspan x="50%" dy={24} fontSize={12} fill="#888">tasks</tspan>
                                             </text>
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </div>
 
                                 {/* Legend */}
-                                <div className="flex flex-col gap-3">
+                                <div className="flex flex-row md:flex-col flex-wrap justify-center gap-4 md:gap-3">
                                     {chartData.map((d) => (
-                                        <div key={d.name} className="flex items-center gap-2">
+                                        <div key={d.name} className="flex items-center gap-2 min-w-[100px] md:min-w-0">
                                             <span className="h-3 w-3 rounded-full shrink-0" style={{ background: d.color }} />
                                             <span className="text-sm font-medium">{d.name}</span>
-                                            <span className="text-sm text-muted-foreground ml-auto">{d.value}</span>
+                                            <span className="text-sm font-bold text-muted-foreground ml-auto">{d.value}</span>
                                         </div>
                                     ))}
                                 </div>
