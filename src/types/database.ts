@@ -96,6 +96,7 @@ export type Database = {
                     user_id: string
                     status: TaskStatus
                     created_at: string
+                    completed_at: string | null
                 }
                 Insert: {
                     id?: string
@@ -107,6 +108,7 @@ export type Database = {
                     user_id: string
                     status?: TaskStatus
                     created_at?: string
+                    completed_at?: string | null
                 }
                 Update: {
                     id?: string
@@ -118,6 +120,7 @@ export type Database = {
                     user_id?: string
                     status?: TaskStatus
                     created_at?: string
+                    completed_at?: string | null
                 }
                 Relationships: [
                     {

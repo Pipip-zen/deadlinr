@@ -1,13 +1,32 @@
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Clock, AlertTriangle, Loader2 } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, Plus, MoreVertical, Trash2, Edit2, Loader2 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 
-import { useTasks, type TaskWithStatus } from '@/hooks/useTasks'
-import { useCompleteTask } from '@/hooks/useDashboard'
+import {
+    useReactTable,
+    getCoreRowModel,
+    getFilteredRowModel,
+    getSortedRowModel,
+    type ColumnDef,
+    type SortingState,
+    type ColumnFiltersState,
+} from '@tanstack/react-table'
+
+import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, useMarkDone } from '@/hooks/useTasks'
+import type { TaskWithStatus } from '@/hooks/useTasks'
+import { useAuthStore } from '@/lib/store'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Dialog } from '@/components/ui/dialog'
 
-// ── Status config ─────────────────────────────────────────────
+// ── Types & Config ─────────────────────────────────────────────
 const STATUS_CONFIG = {
     pending: {
         badge: 'Pending',
@@ -35,7 +54,6 @@ const STATUS_CONFIG = {
     },
 }
 
-// ── Helper ────────────────────────────────────────────────────
 function deadlineLabel(task: TaskWithStatus): string {
     const now = new Date()
     const dl = new Date(task.deadline)
@@ -47,183 +65,356 @@ function deadlineLabel(task: TaskWithStatus): string {
     return `${diff} day${diff !== 1 ? 's' : ''} left`
 }
 
-// ── Task card ─────────────────────────────────────────────────
-function TaskCard({ task, onDone, loading }: { task: TaskWithStatus; onDone: () => void; loading: boolean }) {
-    const cfg = STATUS_CONFIG[task.status]
-    const Icon = cfg.icon
+// ── Inline Form Schema ───────────────────────────────────────
+const taskSchema = z.object({
+    id: z.string().optional(),
+    course_name: z.string().min(1, 'Course name is required'),
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+    deadline: z.string().min(1, 'Deadline is required')
+})
+type TaskFormValues = z.infer<typeof taskSchema>
+
+
+// ── Actions Dropdown Component ─────────────────────────────────────
+function TaskActions({ task, onEdit, onDelete }: { task: TaskWithStatus, onEdit: (task: TaskWithStatus) => void, onDelete: (task: TaskWithStatus) => void }) {
+    const [open, setOpen] = useState(false)
+    const profile = useAuthStore((s) => s.profile)
+    if (task.user_id !== profile?.id) return null
 
     return (
-        <motion.li
-            layout
-            key={task.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.2 } }}
-            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
-            className={`flex items-start gap-4 rounded-2xl border-l-4 border px-5 py-4 shadow-sm transition-colors duration-300 ${cfg.border} ${cfg.bg}`}
-        >
-            {/* Status icon */}
-            <div className={`mt-0.5 shrink-0 ${cfg.iconCls}`}>
-                <Icon size={20} />
-            </div>
-
-            {/* Content */}
-            <div className="min-w-0 flex-1">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-medium text-muted-foreground">{task.course_name}</span>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cfg.badgeCls}`}>
-                        {cfg.badge}
-                    </span>
-                </div>
-
-                <p className={`font-semibold ${task.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
-                    {task.title}
-                </p>
-
-                {task.description && (
-                    <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+        <div className="relative">
+            <Button variant="ghost" size="icon" onClick={() => setOpen(!open)} className="h-8 w-8">
+                <MoreVertical size={16} />
+            </Button>
+            <AnimatePresence>
+                {open && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="absolute right-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover p-1 shadow-md"
+                        >
+                            <button onClick={() => { setOpen(false); onEdit(task); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground">
+                                <Edit2 size={14} /> Edit
+                            </button>
+                            <button onClick={() => { setOpen(false); onDelete(task); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10">
+                                <Trash2 size={14} /> Delete
+                            </button>
+                        </motion.div>
+                    </>
                 )}
-
-                <p className={`mt-1 text-xs font-medium ${task.status === 'overdue' ? 'text-rose-500' :
-                    task.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' :
-                        'text-muted-foreground'
-                    }`}>
-                    {task.status !== 'done' && deadlineLabel(task)}
-                    <span className="ml-1 font-normal text-muted-foreground">
-                        {task.status !== 'done' && ' · '}
-                        {format(new Date(task.deadline), 'MMM d, yyyy')}
-                    </span>
-                </p>
-            </div>
-
-            {/* Action */}
-            <div className="shrink-0">
-                {task.status === 'done' ? (
-                    <div className="flex items-center gap-1.5 rounded-xl bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                        <CheckCircle2 size={13} />
-                        Completed
-                    </div>
-                ) : (
-                    <Button
-                        size="sm"
-                        variant={task.status === 'overdue' ? 'destructive' : 'default'}
-                        loading={loading}
-                        onClick={onDone}
-                        id={`complete-${task.id}`}
-                        className="text-xs"
-                    >
-                        ✓ Done
-                    </Button>
-                )}
-            </div>
-        </motion.li>
+            </AnimatePresence>
+        </div>
     )
 }
 
-// ── Main page ─────────────────────────────────────────────────
-export default function TasksPage() {
-    const { tasks, isLoading, error } = useTasks()
-    const completeTask = useCompleteTask()
+// ── Main tasks component ──────────────────────────────────
+function TasksContent() {
+    const { tasks, isLoading } = useTasks()
+    const createTask = useCreateTask()
+    const updateTask = useUpdateTask()
+    const deleteTask = useDeleteTask()
+    const markDone = useMarkDone()
 
-    async function handleDone(taskId: string) {
+    const [sorting, setSorting] = useState<SortingState>([])
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+
+    // Dialog state
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [editingTask, setEditingTask] = useState<TaskWithStatus | null>(null)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<TaskWithStatus | null>(null)
+
+    const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<TaskFormValues>({
+        resolver: zodResolver(taskSchema),
+        defaultValues: { course_name: '', title: '', description: '', deadline: '' }
+    })
+
+    const openCreateDialog = () => {
+        setEditingTask(null)
+        reset({ course_name: '', title: '', description: '', deadline: '' })
+        setDialogOpen(true)
+    }
+
+    const openEditDialog = (task: TaskWithStatus) => {
+        setEditingTask(task)
+        // Convert timestamp to datetime-local friendly format if needed
+        const dt = new Date(task.deadline).toISOString().slice(0, 16)
+        setValue('id', task.id)
+        setValue('course_name', task.course_name)
+        setValue('title', task.title)
+        setValue('description', task.description || '')
+        setValue('deadline', dt)
+        setDialogOpen(true)
+    }
+
+    async function onFormSubmit(data: TaskFormValues) {
         try {
-            await completeTask.mutateAsync(taskId)
+            if (editingTask && data.id) {
+                await updateTask.mutateAsync({
+                    id: data.id,
+                    course_name: data.course_name,
+                    title: data.title,
+                    description: data.description,
+                    deadline: new Date(data.deadline).toISOString()
+                })
+                toast.success('Task updated successfully')
+            } else {
+                await createTask.mutateAsync({
+                    course_name: data.course_name,
+                    title: data.title,
+                    description: data.description,
+                    deadline: new Date(data.deadline).toISOString()
+                })
+                toast.success('Task added successfully')
+            }
+            setDialogOpen(false)
         } catch {
-            toast.error('Gagal menyelesaikan tugas')
+            toast.error(editingTask ? 'Failed to update task' : 'Failed to add task')
         }
     }
 
-    const pending = tasks.filter((t) => t.status === 'pending')
-    const overdue = tasks.filter((t) => t.status === 'overdue')
-    const completed = tasks.filter((t) => t.status === 'done')
+    // TanStack Table setup
+    const columns = useMemo<ColumnDef<TaskWithStatus>[]>(() => [
+        {
+            accessorKey: 'course_name',
+            header: 'Course',
+            filterFn: 'includesString'
+        },
+        {
+            accessorKey: 'status',
+            header: 'Status',
+            filterFn: 'equals'
+        },
+        {
+            accessorKey: 'deadline',
+            header: 'Deadline'
+        },
+        {
+            accessorKey: 'created_at',
+            header: 'Created'
+        }
+    ], [])
 
-    if (error) {
-        toast.error('Gagal memuat tasks')
+    const table = useReactTable({
+        data: tasks,
+        columns,
+        state: { sorting, columnFilters },
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+    })
+
+    // Status Filter utility
+    const filters = [
+        { label: 'All', value: 'all' },
+        { label: 'Pending', value: 'pending' },
+        { label: 'Done', value: 'done' },
+        { label: 'Overdue', value: 'overdue' },
+    ]
+    const currentStatusFilter = (table.getColumn('status')?.getFilterValue() as string) ?? 'all'
+    const setStatusFilter = (val: string) => {
+        table.getColumn('status')?.setFilterValue(val === 'all' ? undefined : val)
     }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold">My Tasks</h1>
-                <p className="text-sm text-muted-foreground">
-                    {completed.length}/{tasks.length} selesai
-                </p>
+        <div className="mx-auto max-w-5xl space-y-8 pb-12 pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Your Tasks</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">Manage everything across all your courses.</p>
+                </div>
+                <Button onClick={openCreateDialog} className="shrink-0 group">
+                    <Plus size={16} className="mr-2 transition-transform group-hover:rotate-90" />
+                    Add Task
+                </Button>
             </div>
 
-            {isLoading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
-                    <Loader2 size={16} className="animate-spin" />
-                    Memuat tasks…
+            {/* Filter and Sort Controls */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
+                    {filters.map(f => (
+                        <button
+                            key={f.value}
+                            onClick={() => setStatusFilter(f.value)}
+                            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors whitespace-nowrap ${currentStatusFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'}`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
-            )}
 
-            {!isLoading && tasks.length === 0 && (
-                <p className="text-sm text-muted-foreground py-8 text-center">Belum ada tugas untuk kelasmu 🎉</p>
-            )}
+                <div className="flex items-center gap-3">
+                    <Input
+                        placeholder="Filter by course..."
+                        value={(table.getColumn('course_name')?.getFilterValue() as string) ?? ''}
+                        onChange={(e) => table.getColumn('course_name')?.setFilterValue(e.target.value)}
+                        className="w-full sm:w-64"
+                    />
+                </div>
+            </div>
 
-            {/* Overdue */}
-            {overdue.length > 0 && (
-                <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-rose-500">
-                        <AlertTriangle size={14} />
-                        Overdue ({overdue.length})
-                    </h2>
+            {/* TanStack Driven Card Layout */}
+            {isLoading ? (
+                <div className="flex h-40 items-center justify-center">
+                    <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                </div>
+            ) : tasks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-20 text-center">
+                    <CheckCircle2 size={48} className="mb-4 text-muted-foreground/30" />
+                    <h3 className="text-lg font-semibold">No tasks found!</h3>
+                    <p className="text-sm text-muted-foreground mt-1">You're all caught up. Start by adding a task.</p>
+                </div>
+            ) : (
+                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <AnimatePresence mode="popLayout">
-                        <ul className="space-y-3">
-                            {overdue.map((t) => (
-                                <TaskCard
-                                    key={t.id}
-                                    task={t}
-                                    loading={completeTask.isPending && completeTask.variables === t.id}
-                                    onDone={() => handleDone(t.id)}
-                                />
-                            ))}
-                        </ul>
+                        {table.getRowModel().rows.map(row => {
+                            const task = row.original
+                            const cfg = STATUS_CONFIG[task.status]
+                            const Icon = cfg.icon
+                            const isDone = task.status === 'done'
+
+                            return (
+                                <motion.li
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                                    key={task.id}
+                                    className={`flex flex-col justify-between rounded-2xl border-l-4 border-t border-r border-b px-5 py-4 shadow-sm transition-colors duration-300 ${cfg.border} ${cfg.bg}`}
+                                >
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`shrink-0 ${cfg.iconCls}`}>
+                                                <Icon size={18} />
+                                            </div>
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${cfg.badgeCls}`}>
+                                                {cfg.badge}
+                                            </span>
+                                        </div>
+                                        <TaskActions task={task} onEdit={openEditDialog} onDelete={setDeleteConfirmOpen} />
+                                    </div>
+
+                                    <div className="my-4 flex-1">
+                                        <h4 className={`text-sm font-semibold text-muted-foreground uppercase tracking-wide`}>
+                                            {task.course_name}
+                                        </h4>
+                                        <p className={`mt-1 font-semibold text-lg leading-tight ${isDone ? 'text-muted-foreground line-through' : ''}`}>
+                                            {task.title}
+                                        </p>
+                                        {task.description && (
+                                            <p className="mt-2 text-sm text-muted-foreground line-clamp-3">
+                                                {task.description}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-4">
+                                        <div className={`text-xs font-medium ${task.status === 'overdue' ? 'text-rose-500' : task.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                                            {isDone ? `Done on ${format(new Date(task.completed_at || new Date()), 'MMM d')}` : deadlineLabel(task)}
+                                        </div>
+
+                                        {!isDone && (
+                                            <Button
+                                                size="sm"
+                                                variant={task.status === 'overdue' ? 'destructive' : 'outline'}
+                                                className="h-8 rounded-full px-3 text-xs"
+                                                onClick={() => markDone.mutateAsync(task.id)}
+                                            >
+                                                Mark as Done
+                                            </Button>
+                                        )}
+                                    </div>
+                                </motion.li>
+                            )
+                        })}
                     </AnimatePresence>
-                </section>
+                </ul>
             )}
 
-            {/* Pending */}
-            {pending.length > 0 && (
-                <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-                        <Clock size={14} />
-                        Pending ({pending.length})
-                    </h2>
-                    <AnimatePresence mode="popLayout">
-                        <ul className="space-y-3">
-                            {pending.map((t) => (
-                                <TaskCard
-                                    key={t.id}
-                                    task={t}
-                                    loading={completeTask.isPending && completeTask.variables === t.id}
-                                    onDone={() => handleDone(t.id)}
-                                />
-                            ))}
-                        </ul>
-                    </AnimatePresence>
-                </section>
-            )}
+            {/* Add / Edit Task Dialog */}
+            <Dialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                title={editingTask ? 'Edit Task' : 'Add New Task'}
+                description="Enter task details below."
+            >
+                <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">Course Name</label>
+                            <Input {...register('course_name')} placeholder="e.g. CS 101" />
+                            {errors.course_name && <p className="mt-1 text-xs text-red-500">{errors.course_name.message}</p>}
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">Title</label>
+                            <Input {...register('title')} placeholder="e.g. Read Chapter 4" />
+                            {errors.title && <p className="mt-1 text-xs text-red-500">{errors.title.message}</p>}
+                        </div>
+                    </div>
 
-            {/* Completed */}
-            {completed.length > 0 && (
-                <section className="space-y-3">
-                    <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-emerald-600">
-                        <CheckCircle2 size={14} />
-                        Completed ({completed.length})
-                    </h2>
-                    <ul className="space-y-3">
-                        {completed.map((t) => (
-                            <TaskCard
-                                key={t.id}
-                                task={t}
-                                loading={false}
-                                onDone={() => { }}
-                            />
-                        ))}
-                    </ul>
-                </section>
-            )}
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Description (Optional)</label>
+                        <textarea
+                            {...register('description')}
+                            className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            placeholder="Add notes or requirements..."
+                        />
+                    </div>
+
+                    <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Deadline</label>
+                        <Input type="datetime-local" {...register('deadline')} />
+                        {errors.deadline && <p className="mt-1 text-xs text-red-500">{errors.deadline.message}</p>}
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                        <Button type="button" variant="ghost" className="mr-2" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'Saving...' : 'Save Task'}
+                        </Button>
+                    </div>
+                </form>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={!!deleteConfirmOpen}
+                onClose={() => setDeleteConfirmOpen(null)}
+                title="Delete Task"
+            >
+                <div className="py-2 text-sm text-muted-foreground">
+                    Are you sure you want to delete <span className="font-semibold text-foreground">"{deleteConfirmOpen?.title}"</span>? This action cannot be undone.
+                </div>
+                <div className="flex justify-end pt-4">
+                    <Button type="button" variant="ghost" className="mr-2" onClick={() => setDeleteConfirmOpen(null)}>Cancel</Button>
+                    <Button type="button" variant="destructive" onClick={async () => {
+                        if (deleteConfirmOpen) {
+                            try {
+                                await deleteTask.mutateAsync(deleteConfirmOpen.id)
+                                toast.success('Task deleted')
+                            } catch {
+                                toast.error('Failed to delete task')
+                            }
+                            setDeleteConfirmOpen(null)
+                        }
+                    }}>
+                        Delete
+                    </Button>
+                </div>
+            </Dialog>
         </div>
+    )
+}
+
+export default function TasksPage() {
+    return (
+        <ErrorBoundary>
+            <TasksContent />
+        </ErrorBoundary>
     )
 }
