@@ -107,13 +107,6 @@ function CreateTaskContent() {
                             {errors.course_name && (
                                 <p className="text-xs text-destructive">{errors.course_name.message}</p>
                             )}
-
-                            <p className="text-xs text-muted-foreground">
-                                Kelola mata kuliah di{' '}
-                                <a href="/admin/dashboard" className="text-primary hover:underline">
-                                    Admin Dashboard
-                                </a>
-                            </p>
                         </div>
 
                         <Input

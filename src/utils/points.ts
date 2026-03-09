@@ -1,5 +1,5 @@
 /**
- * Points system for TaskTrack gamification.
+ * Points system for Deadlinr gamification.
  *
  * Rule:
  *  - Base points per completion: 10 pts

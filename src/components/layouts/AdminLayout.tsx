@@ -25,7 +25,7 @@ export function AdminLayout() {
         <div className="flex h-screen bg-background text-foreground">
             <aside className="flex w-60 flex-col border-r border-border bg-card px-4 py-6">
                 <div className="mb-8">
-                    <h1 className="text-xl font-bold tracking-tight text-primary">TaskTrack</h1>
+                    <h1 className="text-xl font-bold tracking-tight text-primary">Deadlinr</h1>
                     <p className="mt-1 text-xs text-muted-foreground font-medium text-amber-500">Admin Panel</p>
                 </div>
 

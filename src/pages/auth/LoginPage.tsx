@@ -34,7 +34,7 @@ export default function LoginPage() {
                 {/* Brand */}
                 <div className="text-center">
                     <div className="mb-4 text-6xl">📋</div>
-                    <h1 className="text-4xl font-bold tracking-tight text-foreground">TaskTrack</h1>
+                    <h1 className="text-4xl font-bold tracking-tight text-foreground">Deadlinr</h1>
                     <p className="mt-2 text-muted-foreground">
                         College task tracker with class sync &amp; gamification
                     </p>
@@ -73,7 +73,7 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-xs text-muted-foreground">
-                    By continuing, you agree to TaskTrack's terms of service.
+                    By continuing, you agree to Deadlinr's terms of service.
                 </p>
             </div>
         </div>
