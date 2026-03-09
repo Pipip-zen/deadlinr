@@ -1,8 +1,9 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 
-import { useCreateCourse } from '@/hooks/useCourses'
+import { useCreateCourse, useUpdateCourse, type Course } from '@/hooks/useCourses'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,10 +30,13 @@ type CourseFormValues = z.infer<typeof courseSchema>
 interface Props {
     open: boolean
     onOpenChange: (open: boolean) => void
+    editingCourse?: Course | null
 }
 
-export function AddCourseDialog({ open, onOpenChange }: Props) {
+export function AddCourseDialog({ open, onOpenChange, editingCourse }: Props) {
     const createCourse = useCreateCourse()
+    const updateCourse = useUpdateCourse()
+    const isEditing = !!editingCourse
 
     const {
         register,
@@ -50,12 +54,33 @@ export function AddCourseDialog({ open, onOpenChange }: Props) {
         },
     })
 
+    useEffect(() => {
+        if (open) {
+            if (editingCourse) {
+                reset({
+                    name: editingCourse.name,
+                    code: editingCourse.code,
+                    color: editingCourse.color,
+                })
+            } else {
+                reset({
+                    name: '',
+                    code: '',
+                    color: COURSE_COLORS[0],
+                })
+            }
+        }
+    }, [open, editingCourse, reset])
+
     const selectedColor = watch('color')
 
     async function onSubmit(data: CourseFormValues) {
         try {
-            await createCourse.mutateAsync(data)
-            reset()
+            if (isEditing) {
+                await updateCourse.mutateAsync({ id: editingCourse.id, ...data })
+            } else {
+                await createCourse.mutateAsync(data)
+            }
             onOpenChange(false)
         } catch {
             // Error toast handled in hook
@@ -63,7 +88,6 @@ export function AddCourseDialog({ open, onOpenChange }: Props) {
     }
 
     function handleClose() {
-        reset()
         onOpenChange(false)
     }
 
@@ -71,8 +95,8 @@ export function AddCourseDialog({ open, onOpenChange }: Props) {
         <Dialog
             open={open}
             onClose={handleClose}
-            title="Add Course"
-            description="Create a new personal course for tracking tasks."
+            title={isEditing ? 'Edit Course' : 'Add Course'}
+            description={isEditing ? 'Update course details and tag color.' : 'Create a new personal course for tracking tasks.'}
         >
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-2">
                 <div className="space-y-2">
@@ -109,13 +133,24 @@ export function AddCourseDialog({ open, onOpenChange }: Props) {
                                 aria-label={`Select color ${hex}`}
                             />
                         ))}
+                        {/* Custom Color Input */}
+                        <div className={`relative flex h-8 w-8 overflow-hidden rounded-full transition-transform hover:scale-110 ${!COURSE_COLORS.includes(selectedColor) ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}>
+                            <input
+                                type="color"
+                                value={selectedColor}
+                                onChange={(e) => setValue('color', e.target.value, { shouldValidate: true })}
+                                className="absolute -inset-2 h-12 w-12 cursor-pointer border-0 p-0"
+                                aria-label="Custom color picker"
+                                title="Custom Color"
+                            />
+                        </div>
                     </div>
                     {errors.color && <p className="text-xs text-destructive">{errors.color.message}</p>}
                 </div>
 
                 <div className="flex justify-end pt-2">
                     <Button type="submit" disabled={isSubmitting} loading={isSubmitting}>
-                        {isSubmitting ? 'Adding...' : 'Add Course'}
+                        {isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Add Course')}
                     </Button>
                 </div>
             </form>

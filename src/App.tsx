@@ -17,6 +17,7 @@ import AuthCallbackPage from '@/pages/auth/AuthCallbackPage'
 import SetupPage from '@/pages/onboarding/SetupPage'
 import DashboardPage from '@/pages/student/DashboardPage'
 import TasksPage from '@/pages/student/TasksPage'
+import { CoursesPage } from '@/pages/student/CoursesPage'
 
 function AppRoutes() {
     useAuthSession() // bootstrap auth at root level
@@ -48,6 +49,7 @@ function AppRoutes() {
                     <Route element={<StudentLayout />}>
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/tasks" element={<TasksPage />} />
+                        <Route path="/courses" element={<CoursesPage />} />
                         {/* Leaderboard removed as per gamification removal */}
                     </Route>
                 </Route>

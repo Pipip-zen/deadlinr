@@ -6,6 +6,7 @@ import type { Database } from '@/types/database'
 
 export type Course = Database['public']['Tables']['courses']['Row']
 type CourseInsert = Database['public']['Tables']['courses']['Insert']
+type CourseUpdate = Database['public']['Tables']['courses']['Update']
 
 export function useCourses() {
     const profile = useAuthStore((s) => s.profile)
@@ -58,6 +59,61 @@ export function useCreateCourse() {
         },
         onError: (err: any) => {
             toast.error(err.message || 'Gagal menambahkan mata kuliah')
+        }
+    })
+}
+
+export function useUpdateCourse() {
+    const qc = useQueryClient()
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
+
+    return useMutation({
+        mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<CourseUpdate, 'id' | 'user_id'>>) => {
+            if (!userId) throw new Error('Not authenticated')
+            const { data, error } = await supabase
+                .from('courses')
+                .update(updates)
+                .eq('id', id)
+                .eq('user_id', userId)
+                .select()
+                .single()
+
+            if (error) throw error
+            return data
+        },
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: ['courses'] })
+            toast.success(`Mata kuliah ${data.name} diperbarui`)
+        },
+        onError: (err: any) => {
+            toast.error(err.message || 'Gagal memperbarui mata kuliah')
+        }
+    })
+}
+
+export function useDeleteCourse() {
+    const qc = useQueryClient()
+    const profile = useAuthStore((s) => s.profile)
+    const userId = profile?.id ?? null
+
+    return useMutation({
+        mutationFn: async (id: string) => {
+            if (!userId) throw new Error('Not authenticated')
+            const { error } = await supabase
+                .from('courses')
+                .delete()
+                .eq('id', id)
+                .eq('user_id', userId)
+
+            if (error) throw error
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['courses'] })
+            toast.success('Mata kuliah dihapus')
+        },
+        onError: (err: any) => {
+            toast.error(err.message || 'Gagal menghapus mata kuliah')
         }
     })
 }

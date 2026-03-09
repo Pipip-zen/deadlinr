@@ -1,16 +1,13 @@
-import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/lib/store'
-import { useCourses } from '@/hooks/useCourses'
 import { cn } from '@/utils/cn'
-import { LayoutDashboard, CheckSquare, LogOut, User, Plus } from 'lucide-react'
-
-import { AddCourseDialog } from '@/components/courses/AddCourseDialog'
+import { LayoutDashboard, CheckSquare, Book, LogOut, User } from 'lucide-react'
 
 const navItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
+    { to: '/courses', icon: Book, label: 'Courses' },
     // On mobile we add a profile button, on desktop the profile name is in sidebar
 ]
 
@@ -18,9 +15,6 @@ export function StudentLayout() {
     const { profile, clearAuth } = useAuthStore()
     const name = profile?.name
     const navigate = useNavigate()
-
-    const [isAddOpen, setIsAddOpen] = useState(false)
-    const { courses, isLoading: isLoadingCourses } = useCourses()
 
     async function handleSignOut() {
         await supabase.auth.signOut()
@@ -59,50 +53,7 @@ export function StudentLayout() {
                         ))}
                     </div>
 
-                    {/* Courses Section */}
-                    <div className="space-y-1">
-                        <div className="mb-2 flex items-center justify-between px-4">
-                            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Courses</h2>
-                            <button
-                                onClick={() => setIsAddOpen(true)}
-                                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-1">
-                            {isLoadingCourses ? (
-                                <p className="px-4 py-2 text-xs text-muted-foreground">Loading...</p>
-                            ) : courses.length === 0 ? (
-                                <p className="px-4 py-2 text-xs text-muted-foreground">No courses yet</p>
-                            ) : (
-                                courses.map((course) => (
-                                    <NavLink
-                                        key={course.id}
-                                        to={`/tasks?course=${course.id}`}
-                                        className={() => {
-                                            // Manual active check since URLSearchParams aren't automatically tracked this way by isActive
-                                            const searchParams = new URLSearchParams(window.location.search)
-                                            const isCourseActive = window.location.pathname === '/tasks' && searchParams.get('course') === course.id
-                                            return cn(
-                                                'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors',
-                                                isCourseActive
-                                                    ? 'bg-primary/10 text-primary'
-                                                    : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                                            )
-                                        }}
-                                    >
-                                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
-                                        <span className="truncate">{course.code} - {course.name}</span>
-                                    </NavLink>
-                                ))
-                            )}
-                        </div>
-                    </div>
                 </nav>
-
-                <AddCourseDialog open={isAddOpen} onOpenChange={setIsAddOpen} />
 
                 <div className="border-t border-border pt-6 mt-6">
                     <div className="mb-4 flex items-center gap-3 px-2">
